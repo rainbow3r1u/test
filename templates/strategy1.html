@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>策略1信号 - 连续缩量震荡上行</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117; color: #e6edf3;
+            min-height: 100vh;
+        }
+        .header {
+            background: #161b22; padding: 15px 20px;
+            border-bottom: 1px solid #30363d;
+            position: sticky; top: 0; z-index: 100;
+        }
+        .header h1 { font-size: 18px; color: #58a6ff; margin-bottom: 4px; }
+        .header .info { font-size: 12px; color: #8b949e; }
+        .header .back { color: #58a6ff; font-size: 13px; text-decoration: none; margin-top: 6px; display: inline-block; }
+        .header .back:hover { text-decoration: underline; }
+
+        .filters {
+            padding: 14px 20px;
+            display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+            background: #0d1117; border-bottom: 1px solid #21262d;
+        }
+        .filters label { font-size: 13px; color: #8b949e; }
+        .filters select {
+            background: #161b22; border: 1px solid #30363d;
+            color: #e6edf3; padding: 5px 10px;
+            border-radius: 6px; font-size: 13px;
+        }
+        .filters button {
+            background: #238636; border: none; color: #fff;
+            padding: 6px 14px; border-radius: 6px;
+            cursor: pointer; font-size: 13px;
+        }
+        .filters button:hover { background: #2ea043; }
+
+        .count {
+            padding: 10px 20px;
+            font-size: 13px; color: #8b949e;
+            background: #0d1117;
+        }
+        .count strong { color: #e6edf3; }
+
+        .signal {
+            border: 1px solid #30363d; border-radius: 8px;
+            margin: 10px 20px 10px 20px; overflow: hidden;
+            background: #161b22;
+        }
+        .signal-header {
+            padding: 10px 14px; cursor: pointer;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .signal-header:hover { background: #1c2128; }
+        .sym { font-weight: 600; font-size: 14px; color: #f0f6fc; }
+        .sym span { font-size: 11px; color: #8b949e; font-weight: 400; margin-left: 8px; }
+        .sig-info { display: flex; gap: 14px; font-size: 12px; color: #8b949e; }
+        .sig-info .vol { color: #ffa657; font-weight: 600; }
+        .sig-info .hrs { color: #a5d6ff; }
+        .sig-info .gain { color: #7ee787; }
+        .toggle-icon { color: #8b949e; font-size: 11px; transition: transform 0.2s; display: inline-block; }
+        .signal-header.open .toggle-icon { transform: rotate(90deg); }
+
+        .signal-body { display: none; padding: 10px 14px; background: #0d1117; }
+        .signal-body.open { display: block; }
+
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th {
+            text-align: left; color: #8b949e; padding: 4px 8px;
+            border-bottom: 1px solid #30363d; font-weight: 500;
+        }
+        td { padding: 5px 8px; border-bottom: 1px solid #21262d; }
+        tr:last-child td { border-bottom: none; }
+        td.num { text-align: right; font-variant-numeric: tabular-nums; }
+
+        .highlight { border-color: #f0883e; }
+        .highlight .signal-header { background: #2a1f0a; }
+        .highlight .signal-header:hover { background: #3a2910; }
+
+        .loading { text-align: center; padding: 40px; color: #8b949e; }
+        .empty { text-align: center; padding: 40px; color: #8b949e; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>策略1：连续缩量震荡上行（小时线）</h1>
+    <div class="info">
+        扫描条件：连续3小时以上，每小时震幅 0.5%~2.5%，每小时最低价逐步抬高
+    </div>
+    <div class="info">
+        当前：北京时间 <span id="bjTime">加载中...</span> | 信号窗口：<span id="window"></span>
+    </div>
+    <a class="back" href="/">&#8592; 返回主页</a>
+</div>
+
+<div class="filters">
+    <label>连续小时数 &gt;=</label>
+    <select id="filterHrs">
+        <option value="3">3小时</option>
+        <option value="4">4小时</option>
+        <option value="5" selected>5小时</option>
+        <option value="6">6小时</option>
+    </select>
+    <label>成交额 &gt;=</label>
+    <select id="filterVol">
+        <option value="0">不限</option>
+        <option value="0.5">0.5M USDT</option>
+        <option value="1" selected>1M USDT</option>
+        <option value="2">2M USDT</option>
+        <option value="5">5M USDT</option>
+    </select>
+    <label>排序</label>
+    <select id="sortBy">
+        <option value="vol" selected>按成交额</option>
+        <option value="time">按最新时间</option>
+        <option value="hrs">按连续小时数</option>
+    </select>
+    <button onclick="applyFilters()">筛选</button>
+    <button onclick="refreshData()" style="background:#30363d;">刷新数据</button>
+</div>
+
+<div class="count" id="countDisplay">共找到 <strong>0</strong> 个信号</div>
+<div id="signals"><div class="loading">加载中...</div></div>
+
+<script>
+let allData = [];
+let filtered = [];
+
+function updateTime() {
+    const now = new Date();
+    const bj = new Date(now.getTime() + 8 * 3600000);
+    document.getElementById('bjTime').textContent = bj.toLocaleString('zh-CN', {timeZone: 'Asia/Shanghai'});
+    const t3 = new Date(bj.getTime() - 3 * 3600000);
+    const t6 = new Date(bj.getTime() - 6 * 3600000);
+    const fmt = d => d.toLocaleTimeString('zh-CN', {timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit'});
+    document.getElementById('window').textContent = fmt(t6) + ' ~ ' + fmt(t3) + ' 结束';
+}
+
+function refreshData() {
+    document.getElementById('signals').innerHTML = '<div class="loading">加载中...</div>';
+    fetch('/api/strategy1')
+        .then(r => r.json())
+        .then(res => {
+            if (res.code === 0) {
+                allData = res.data;
+                updateTime();
+                applyFilters();
+            } else {
+                document.getElementById('signals').innerHTML = '<div class="empty">加载失败: ' + res.msg + '</div>';
+            }
+        })
+        .catch(e => {
+            document.getElementById('signals').innerHTML = '<div class="empty">网络错误: ' + e.message + '</div>';
+        });
+}
+
+function applyFilters() {
+    const minHrs = parseInt(document.getElementById('filterHrs').value);
+    const minVol = parseFloat(document.getElementById('filterVol').value);
+    const sortBy = document.getElementById('sortBy').value;
+
+    filtered = allData.filter(d => d.hrs >= minHrs && d.vol >= minVol);
+
+    if (sortBy === 'time') filtered.sort((a,b) => b.startTime.localeCompare(a.startTime));
+    else if (sortBy === 'hrs') filtered.sort((a,b) => b.hrs - a.hrs);
+    else if (sortBy === 'vol') filtered.sort((a,b) => b.vol - a.vol);
+
+    render();
+}
+
+function render() {
+    const container = document.getElementById('signals');
+    document.getElementById('countDisplay').innerHTML = `共找到 <strong>${filtered.length}</strong> 个信号`;
+
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="empty">暂无符合条件的信号</div>';
+        return;
+    }
+
+    container.innerHTML = filtered.map(d => {
+        const isBig = d.hrs >= 5 || d.vol >= 5;
+        return `
+        <div class="signal ${isBig ? 'highlight' : ''}">
+            <div class="signal-header" onclick="toggle(this)">
+                <span class="sym">${d.symbol} <span>${d.time}</span></span>
+                <div class="sig-info">
+                    <span class="vol">${d.vol}M</span>
+                    <span class="hrs">${d.hrs}小时</span>
+                    <span class="gain">+${d.gain}%</span>
+                </div>
+                <span class="toggle-icon">&#9654;</span>
+            </div>
+            <div class="signal-body">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>震幅</th><th>成交额</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${d.bars.map(b => `
+                        <tr>
+                            <td>${b.t}</td>
+                            <td class="num">${b.o}</td>
+                            <td class="num">${b.high}</td>
+                            <td class="num">${b.low}</td>
+                            <td class="num">${b.c}</td>
+                            <td class="num">${b.r}</td>
+                            <td class="num">${b.v}</td>
+                        </tr>`).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggle(el) {
+    el.classList.toggle('open');
+    el.nextElementSibling.classList.toggle('open');
+}
+
+updateTime();
+refreshData();
+</script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+{
+  "title": "DeepSeek 3.2分析",
+  "timestamp": "2026-04-07 10:39:48",
+  "conditions": [
+    "DeepSeek AI分析",
+    "19天日线数据",
+    "推荐做多币种",
+    "技术形态分析"
+  ],
+  "summary": {
+    "recommendations": 5,
+    "uptrend_count": 10,
+    "breakout_count": 10
+  },
+  "items": [
+    {
+      "symbol": "1000PEPEUSDT",
+      "price": 0.0033611,
+      "volume": "-",
+      "change": 0,
+      "indicator": "[横盘吸筹] 10天波动<15%且日均成交额超200M，量价齐稳蓄势待发",
+      "note": "目标:0.0038; 入场:现价附近分批建仓，止损0.0031"
+    },
+    {
+      "symbol": "TRUUSDT",
+      "price": 0.008727,
+      "volume": "-",
+      "change": 0,
+      "indicator": "[突破形态] 放量突破前高，量比达97倍显示强劲买盘，MA5上穿MA10",
+      "note": "目标:0.0105; 入场:突破0.0088后回踩入场，止损0.0079"
+    },
+    {
+      "symbol": "1000FLOKIUSDT",
+      "price": 0.0269,
+      "volume": "-",
+      "change": 0,
+      "indicator": "[横盘吸筹] 10天波动仅10%，成交温和放大，处于关键支撑位上方",
+      "note": "目标:0.000095; 入场:于0.000085-0.000088区间入场，止损0.000078"
+    },
+    {
+      "symbol": "ZECUSDT",
+      "price": 252.73,
+      "volume": "-",
+      "change": 0,
+      "indicator": "[资金吸筹] 成交额进入Top15但涨幅温和，呈现高位整理吸筹迹象",
+      "note": "目标:270; 入场:回踩245-250支撑区域入场，止损235"
+    },
+    {
+      "symbol": "TAOUSDT",
+      "price": 311.15,
+      "volume": "-",
+      "change": 0,
+      "indicator": "[突破形态] 放量上涨突破关键阻力，成交额巨大显示机构参与",
+      "note": "目标:330; 入场:突破315后追涨或回踩305入场，止损295"
+    }
+  ]
+}

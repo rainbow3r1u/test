@@ -1,0 +1,95 @@
+{
+  "title": "币种质量评分",
+  "timestamp": "2026-04-07 10:39:38",
+  "conditions": [
+    "两连阳",
+    "质量评分≥40",
+    "按成交额排序"
+  ],
+  "summary": {
+    "two_green_count": 16,
+    "display_count": 10
+  },
+  "items": [
+    {
+      "symbol": "ENAUSDT",
+      "price": 0.0818,
+      "volume": "12.6M",
+      "change": 1.24,
+      "indicator": "总分50(流20完10波10趋10热0)",
+      "note": "两连阳 +1.24% / +0.25%"
+    },
+    {
+      "symbol": "币安人生USDT",
+      "price": 0.0731,
+      "volume": "5.7M",
+      "change": 3.29,
+      "indicator": "总分60(流10完10波10趋20热10)",
+      "note": "两连阳 +3.29% / +3.22%"
+    },
+    {
+      "symbol": "REZUSDT",
+      "price": 0.003807,
+      "volume": "2.1M",
+      "change": 2.9,
+      "indicator": "总分40(流10完10波10趋0热10)",
+      "note": "两连阳 +2.9% / +4.27%"
+    },
+    {
+      "symbol": "LITUSDT",
+      "price": 1.0322,
+      "volume": "1.6M",
+      "change": 1.47,
+      "indicator": "总分40(流10完10波10趋10热0)",
+      "note": "两连阳 +1.47% / +0.97%"
+    },
+    {
+      "symbol": "BRUSDT",
+      "price": 0.13453,
+      "volume": "1.2M",
+      "change": 3.91,
+      "indicator": "总分50(流20完10波10趋10热0)",
+      "note": "两连阳 +3.91% / +1.55%"
+    },
+    {
+      "symbol": "DEXEUSDT",
+      "price": 8.905,
+      "volume": "0.9M",
+      "change": 2.49,
+      "indicator": "总分50(流10完10波10趋20热0)",
+      "note": "两连阳 +2.49% / +0.74%"
+    },
+    {
+      "symbol": "SNXUSDT",
+      "price": 0.294,
+      "volume": "0.8M",
+      "change": 1.75,
+      "indicator": "总分45(流10完10波10趋10热5)",
+      "note": "两连阳 +1.75% / +1.38%"
+    },
+    {
+      "symbol": "PYTHUSDT",
+      "price": 0.04055,
+      "volume": "0.5M",
+      "change": 0.47,
+      "indicator": "总分40(流10完10波10趋10热0)",
+      "note": "两连阳 +0.47% / +0.8%"
+    },
+    {
+      "symbol": "AIAUSDT",
+      "price": 0.11291,
+      "volume": "0.5M",
+      "change": 2.82,
+      "indicator": "总分40(流10完10波10趋10热0)",
+      "note": "两连阳 +2.82% / +3.82%"
+    },
+    {
+      "symbol": "TRADOORUSDT",
+      "price": 3.209,
+      "volume": "0.4M",
+      "change": 1.14,
+      "indicator": "总分50(流10完10波10趋20热0)",
+      "note": "两连阳 +1.14% / +0.09%"
+    }
+  ]
+}

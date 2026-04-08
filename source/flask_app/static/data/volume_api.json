@@ -1,0 +1,171 @@
+{
+  "title": "合约趋势",
+  "timestamp": "2026-04-07 10:39:41",
+  "conditions": [
+    "排除BTC/ETH",
+    "近19天数据",
+    "每日成交量汇总"
+  ],
+  "summary": {
+    "start_date": "2026-03-19",
+    "end_date": "2026-04-06",
+    "total_change_pct": 43.25,
+    "up_days": 9,
+    "down_days": 9,
+    "trend": "明显上涨趋势"
+  },
+  "items": [
+    {
+      "symbol": "2026-03-19",
+      "price": "42.92B",
+      "volume": "-",
+      "change": 0,
+      "indicator": "-",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-20",
+      "price": "35.44B",
+      "volume": "-",
+      "change": -17.4194270022214,
+      "indicator": "-17.42%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-21",
+      "price": "17.54B",
+      "volume": "-",
+      "change": -50.51054790702898,
+      "indicator": "-50.51%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-22",
+      "price": "32.13B",
+      "volume": "-",
+      "change": 83.20517095652961,
+      "indicator": "+83.21%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-23",
+      "price": "56.17B",
+      "volume": "-",
+      "change": 74.80489556093963,
+      "indicator": "+74.80%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-24",
+      "price": "38.32B",
+      "volume": "-",
+      "change": -31.783830715208705,
+      "indicator": "-31.78%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-25",
+      "price": "35.64B",
+      "volume": "-",
+      "change": -6.985784375984694,
+      "indicator": "-6.99%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-26",
+      "price": "38.20B",
+      "volume": "-",
+      "change": 7.184195875426158,
+      "indicator": "+7.18%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-27",
+      "price": "37.79B",
+      "volume": "-",
+      "change": -1.0864219968748867,
+      "indicator": "-1.09%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-28",
+      "price": "21.71B",
+      "volume": "-",
+      "change": -42.548507178811015,
+      "indicator": "-42.55%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-29",
+      "price": "22.93B",
+      "volume": "-",
+      "change": 5.6381209470308,
+      "indicator": "+5.64%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-30",
+      "price": "36.15B",
+      "volume": "-",
+      "change": 57.620009629676304,
+      "indicator": "+57.62%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-03-31",
+      "price": "43.89B",
+      "volume": "-",
+      "change": 21.413087937002206,
+      "indicator": "+21.41%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-04-01",
+      "price": "36.14B",
+      "volume": "-",
+      "change": -17.652938010186713,
+      "indicator": "-17.65%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-04-02",
+      "price": "43.74B",
+      "volume": "-",
+      "change": 21.038859468075533,
+      "indicator": "+21.04%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-04-03",
+      "price": "21.38B",
+      "volume": "-",
+      "change": -51.11594806677455,
+      "indicator": "-51.12%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-04-04",
+      "price": "17.31B",
+      "volume": "-",
+      "change": -19.042668099790163,
+      "indicator": "-19.04%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-04-05",
+      "price": "25.22B",
+      "volume": "-",
+      "change": 45.7086148966221,
+      "indicator": "+45.71%",
+      "note": "USDT"
+    },
+    {
+      "symbol": "2026-04-06",
+      "price": "36.13B",
+      "volume": "-",
+      "change": 43.253140167810855,
+      "indicator": "+43.25%",
+      "note": "USDT"
+    }
+  ]
+}

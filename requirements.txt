@@ -1,0 +1,5 @@
+flask>=2.0
+pandas>=1.5
+numpy>=1.21
+ccxt>=2.0
+qcloud_cos>=5.0

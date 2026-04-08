@@ -1,0 +1,422 @@
+[
+  {
+    "symbol": "PUFFERUSDT",
+    "gain": 12.34,
+    "price": 0.03132,
+    "volume": 59313279.0,
+    "timestamp": "2026-04-08 02:00:00",
+    "date": "2026-04-08",
+    "hour": 2,
+    "image_path": null
+  },
+  {
+    "symbol": "JOEUSDT",
+    "gain": 26.84,
+    "price": 0.06795,
+    "volume": 367017440.0,
+    "timestamp": "2026-04-08 01:00:00",
+    "date": "2026-04-08",
+    "hour": 1,
+    "image_path": null
+  },
+  {
+    "symbol": "TRUUSDT",
+    "gain": 16.85,
+    "price": 0.010105,
+    "volume": 1165659094.0,
+    "timestamp": "2026-04-08 00:00:00",
+    "date": "2026-04-08",
+    "hour": 0,
+    "image_path": null
+  },
+  {
+    "symbol": "ORDERUSDT",
+    "gain": 14.19,
+    "price": 0.06107,
+    "volume": 80030259.0,
+    "timestamp": "2026-04-08 00:00:00",
+    "date": "2026-04-08",
+    "hour": 0,
+    "image_path": null
+  },
+  {
+    "symbol": "JOEUSDT",
+    "gain": 13.66,
+    "price": 0.05568,
+    "volume": 315355085.0,
+    "timestamp": "2026-04-07 22:00:00",
+    "date": "2026-04-07",
+    "hour": 22,
+    "image_path": null
+  },
+  {
+    "symbol": "ZECUSDT",
+    "gain": 11.79,
+    "price": 309.47,
+    "volume": 694847.535,
+    "timestamp": "2026-04-07 21:00:00",
+    "date": "2026-04-07",
+    "hour": 21,
+    "image_path": null
+  },
+  {
+    "symbol": "JOEUSDT",
+    "gain": 21.01,
+    "price": 0.04901,
+    "volume": 82640609.0,
+    "timestamp": "2026-04-07 21:00:00",
+    "date": "2026-04-07",
+    "hour": 21,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 11.23,
+    "price": 0.018873,
+    "volume": 1607860267.0,
+    "timestamp": "2026-04-07 19:00:00",
+    "date": "2026-04-07",
+    "hour": 19,
+    "image_path": null
+  },
+  {
+    "symbol": "SWARMSUSDT",
+    "gain": 11.47,
+    "price": 0.0151,
+    "volume": 1826036186.0,
+    "timestamp": "2026-04-07 17:00:00",
+    "date": "2026-04-07",
+    "hour": 17,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 10.74,
+    "price": 0.015774,
+    "volume": 3726672322.0,
+    "timestamp": "2026-04-07 17:00:00",
+    "date": "2026-04-07",
+    "hour": 17,
+    "image_path": null
+  },
+  {
+    "symbol": "ARIAUSDT",
+    "gain": 16.67,
+    "price": 0.5732,
+    "volume": 38199895.0,
+    "timestamp": "2026-04-07 16:00:00",
+    "date": "2026-04-07",
+    "hour": 16,
+    "image_path": null
+  },
+  {
+    "symbol": "REDUSDT",
+    "gain": 33.05,
+    "price": 0.2222,
+    "volume": 520537158.0,
+    "timestamp": "2026-04-07 15:00:00",
+    "date": "2026-04-07",
+    "hour": 23,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 11.16,
+    "price": 0.017026,
+    "volume": 1461726910.0,
+    "timestamp": "2026-04-07 15:00:00",
+    "date": "2026-04-07",
+    "hour": 23,
+    "image_path": null
+  },
+  {
+    "symbol": "SWARMSUSDT",
+    "gain": 19.08,
+    "price": 0.013773,
+    "volume": 1813440376.0,
+    "timestamp": "2026-04-07 15:00:00",
+    "date": "2026-04-07",
+    "hour": 15,
+    "image_path": null
+  },
+  {
+    "symbol": "IRYSUSDT",
+    "gain": 12.63,
+    "price": 0.02158,
+    "volume": 74611284.0,
+    "timestamp": "2026-04-07 14:00:00",
+    "date": "2026-04-07",
+    "hour": 14,
+    "image_path": null
+  },
+  {
+    "symbol": "CYSUSDT",
+    "gain": 10.32,
+    "price": 0.2276,
+    "volume": 8412757.0,
+    "timestamp": "2026-04-07 13:00:00",
+    "date": "2026-04-07",
+    "hour": 21,
+    "image_path": null
+  },
+  {
+    "symbol": "ESPUSDT",
+    "gain": 10.75,
+    "price": 0.09549,
+    "volume": 153315397.0,
+    "timestamp": "2026-04-07 13:00:00",
+    "date": "2026-04-07",
+    "hour": 21,
+    "image_path": null
+  },
+  {
+    "symbol": "BLUAIUSDT",
+    "gain": 11.5,
+    "price": 0.008505,
+    "volume": 349766148.0,
+    "timestamp": "2026-04-07 13:00:00",
+    "date": "2026-04-07",
+    "hour": 13,
+    "image_path": null
+  },
+  {
+    "symbol": "SOLVUSDT",
+    "gain": 15.18,
+    "price": 0.004538,
+    "volume": 1142764545.0,
+    "timestamp": "2026-04-07 11:00:00",
+    "date": "2026-04-07",
+    "hour": 11,
+    "image_path": null
+  },
+  {
+    "symbol": "NOMUSDT",
+    "gain": 18.2,
+    "price": 0.006762,
+    "volume": 5812313985.0,
+    "timestamp": "2026-04-07 11:00:00",
+    "date": "2026-04-07",
+    "hour": 11,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 24.87,
+    "price": 0.017405,
+    "volume": 1360864056.0,
+    "timestamp": "2026-04-07 10:00:00",
+    "date": "2026-04-07",
+    "hour": 18,
+    "image_path": null
+  },
+  {
+    "symbol": "NOMUSDT",
+    "gain": 11.69,
+    "price": 0.005722,
+    "volume": 2853033665.0,
+    "timestamp": "2026-04-07 10:00:00",
+    "date": "2026-04-07",
+    "hour": 10,
+    "image_path": null
+  },
+  {
+    "symbol": "TRUUSDT",
+    "gain": 12.41,
+    "price": 0.009203,
+    "volume": 1935616388.0,
+    "timestamp": "2026-04-07 09:00:00",
+    "date": "2026-04-07",
+    "hour": 17,
+    "image_path": null
+  },
+  {
+    "symbol": "AIOTUSDT",
+    "gain": 20.63,
+    "price": 0.04415,
+    "volume": 296953102.0,
+    "timestamp": "2026-04-07 09:00:00",
+    "date": "2026-04-07",
+    "hour": 17,
+    "image_path": null
+  },
+  {
+    "symbol": "NOMUSDT",
+    "gain": 13.01,
+    "price": 0.005124,
+    "volume": 1107916710.0,
+    "timestamp": "2026-04-07 09:00:00",
+    "date": "2026-04-07",
+    "hour": 9,
+    "image_path": null
+  },
+  {
+    "symbol": "FUSDT",
+    "gain": 17.05,
+    "price": 0.005877,
+    "volume": 1723174793.0,
+    "timestamp": "2026-04-07 08:00:00",
+    "date": "2026-04-07",
+    "hour": 16,
+    "image_path": null
+  },
+  {
+    "symbol": "DUSDT",
+    "gain": 13.67,
+    "price": 0.0141,
+    "volume": 829384031.0,
+    "timestamp": "2026-04-07 08:00:00",
+    "date": "2026-04-07",
+    "hour": 8,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 11.94,
+    "price": 0.013769,
+    "volume": 1792811580.0,
+    "timestamp": "2026-04-07 06:00:00",
+    "date": "2026-04-07",
+    "hour": 14,
+    "image_path": null
+  },
+  {
+    "symbol": "DUSDT",
+    "gain": 10.18,
+    "price": 0.013044,
+    "volume": 195177880.0,
+    "timestamp": "2026-04-07 02:00:00",
+    "date": "2026-04-07",
+    "hour": 10,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 16.47,
+    "price": 0.012277,
+    "volume": 858367939.0,
+    "timestamp": "2026-04-07 02:00:00",
+    "date": "2026-04-07",
+    "hour": 10,
+    "image_path": null
+  },
+  {
+    "symbol": "NILUSDT",
+    "gain": 12.43,
+    "price": 0.03771,
+    "volume": 112828050.9,
+    "timestamp": "2026-04-07 01:00:00",
+    "date": "2026-04-07",
+    "hour": 9,
+    "image_path": null
+  },
+  {
+    "symbol": "BANKUSDT",
+    "gain": 26.68,
+    "price": 0.04316,
+    "volume": 705156325.0,
+    "timestamp": "2026-04-07 01:00:00",
+    "date": "2026-04-07",
+    "hour": 9,
+    "image_path": null
+  },
+  {
+    "symbol": "BSBUSDT",
+    "gain": 10.65,
+    "price": 0.2005,
+    "volume": 18866243.0,
+    "timestamp": "2026-04-07 01:00:00",
+    "date": "2026-04-07",
+    "hour": 9,
+    "image_path": null
+  },
+  {
+    "symbol": "BANKUSDT",
+    "gain": 16.12,
+    "price": 0.03407,
+    "volume": 133916404.0,
+    "timestamp": "2026-04-07 00:00:00",
+    "date": "2026-04-07",
+    "hour": 8,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 13.83,
+    "price": 0.010044,
+    "volume": 765734713.0,
+    "timestamp": "2026-04-07 00:00:00",
+    "date": "2026-04-07",
+    "hour": 8,
+    "image_path": null
+  },
+  {
+    "symbol": "BOBUSDT",
+    "gain": 18.1,
+    "price": 0.007988,
+    "volume": 1656563959.0,
+    "timestamp": "2026-04-07 00:00:00",
+    "date": "2026-04-07",
+    "hour": 8,
+    "image_path": null
+  },
+  {
+    "symbol": "BLUAIUSDT",
+    "gain": 11.5,
+    "price": 0.008505,
+    "volume": 349766148.0,
+    "timestamp": "2026-04-06 21:00:00",
+    "date": "2026-04-06",
+    "hour": 5,
+    "image_path": null
+  },
+  {
+    "symbol": "SOLVUSDT",
+    "gain": 15.18,
+    "price": 0.004538,
+    "volume": 1142764545.0,
+    "timestamp": "2026-04-06 19:00:00",
+    "date": "2026-04-06",
+    "hour": 3,
+    "image_path": null
+  },
+  {
+    "symbol": "NOMUSDT",
+    "gain": 18.2,
+    "price": 0.006762,
+    "volume": 5812313985.0,
+    "timestamp": "2026-04-06 19:00:00",
+    "date": "2026-04-06",
+    "hour": 3,
+    "image_path": null
+  },
+  {
+    "symbol": "NOMUSDT",
+    "gain": 11.69,
+    "price": 0.005722,
+    "volume": 2853033665.0,
+    "timestamp": "2026-04-06 18:00:00",
+    "date": "2026-04-06",
+    "hour": 2,
+    "image_path": null
+  },
+  {
+    "symbol": "NOMUSDT",
+    "gain": 13.01,
+    "price": 0.005124,
+    "volume": 1107916710.0,
+    "timestamp": "2026-04-06 17:00:00",
+    "date": "2026-04-06",
+    "hour": 1,
+    "image_path": null
+  },
+  {
+    "symbol": "DUSDT",
+    "gain": 13.67,
+    "price": 0.0141,
+    "volume": 829384031.0,
+    "timestamp": "2026-04-06 16:00:00",
+    "date": "2026-04-06",
+    "hour": 0,
+    "image_path": null
+  }
+]

@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加密货币策略扫描</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+        .header { background: #161b22; padding: 12px 20px; border-bottom: 1px solid #30363d; position: sticky; top: 0; z-index: 100; }
+        .header h1 { font-size: 17px; color: #58a6ff; margin-bottom: 4px; }
+        .header .time { font-size: 11px; color: #484f58; }
+        .tabs { display: flex; gap: 6px; padding: 10px 20px; overflow-x: auto; background: #0d1117; border-bottom: 1px solid #21262d; }
+        .tab { padding: 6px 14px; border-radius: 20px; cursor: pointer; white-space: nowrap; font-size: 13px; color: #8b949e; border: 1px solid #30363d; background: #161b22; transition: all 0.2s; text-decoration: none; display: inline-block; }
+        .tab:hover { border-color: #58a6ff; color: #58a6ff; }
+
+        .report-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 14px; margin: 14px 20px 12px; }
+        .report-card:hover { border-color: #484f58; }
+        .report-title { font-size: 15px; font-weight: 600; color: #f0f6fc; margin-bottom: 4px; }
+        .report-meta { font-size: 12px; color: #8b949e; margin-bottom: 10px; }
+        .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin-bottom: 10px; }
+        .summary-item { background: #0d1117; border-radius: 6px; padding: 8px 10px; }
+        .summary-label { font-size: 11px; color: #8b949e; }
+        .summary-value { font-size: 15px; font-weight: 600; color: #e6edf3; margin-top: 2px; }
+        .table-wrapper { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 12px; }
+        th { background: #0d1117; padding: 8px; text-align: left; color: #8b949e; font-weight: 500; white-space: nowrap; border-bottom: 1px solid #30363d; }
+        td { padding: 8px; border-bottom: 1px solid #21262d; white-space: nowrap; color: #e6edf3; vertical-align: top; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #1c2128; }
+        .positive { color: #7ee787; font-weight: 600; }
+        .negative { color: #f85149; font-weight: 600; }
+
+        /* 稳步抬升样式 */
+        .signal { border: 1px solid #30363d; border-radius: 8px; margin-bottom: 10px; overflow: hidden; background: #161b22; }
+        .signal:hover { border-color: #484f58; }
+        .signal-header { padding: 10px 14px; cursor: pointer; }
+        .signal-header:hover { background: #1c2128; }
+        .sym { font-weight: 600; font-size: 14px; color: #f0f6fc; }
+        .sym span { font-size: 11px; color: #8b949e; font-weight: 400; margin-left: 8px; }
+        .sig-info { display: flex; gap: 14px; font-size: 12px; color: #8b949e; margin-top: 4px; }
+        .sig-info .vol { color: #ffa657; font-weight: 600; }
+        .sig-info .hrs { color: #a5d6ff; }
+        .sig-info .gain { color: #7ee787; }
+        .toggle-icon { color: #8b949e; font-size: 11px; margin-left: 8px; }
+        .signal-body { display: none; padding: 10px 14px; background: #0d1117; }
+        .signal-body.open { display: block; }
+        .signal table th { background: #0d1117; color: #8b949e; padding: 5px 8px; border-bottom: 1px solid #30363d; }
+        .signal td { padding: 5px 8px; border-bottom: 1px solid #21262d; }
+        .signal td.num { text-align: right; }
+        .highlight { border-color: #f0883e; }
+        .highlight .signal-header { background: #2a1f0a; }
+        .highlight .signal-header:hover { background: #3a2910; }
+
+        .filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 20px; background: #0d1117; border-bottom: 1px solid #21262d; }
+        .filter-bar label { font-size: 13px; color: #8b949e; }
+        .filter-bar select { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 5px 10px; border-radius: 6px; font-size: 13px; }
+        .filter-bar button { background: #238636; border: none; color: #fff; padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+        .filter-bar button:hover { background: #2ea043; }
+        .filter-bar span { margin-left: auto; font-size: 12px; color: #484f58; }
+
+        .empty { text-align: center; padding: 40px; color: #8b949e; }
+        td.wrap-text { white-space: normal; word-break: break-all; font-size: 12px; line-height: 1.6; max-width: 500px; color: #adbac7; }
+
+        @media (max-width: 768px) {
+            .header h1 { font-size: 15px; }
+            table, .signal table { font-size: 11px; }
+            th, td { padding: 6px 5px; }
+            .summary-grid { grid-template-columns: repeat(3, 1fr); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>加密货币策略扫描</h1>
+    <div class="time" id="bjTime"></div>
+</div>
+
+<div class="tabs">
+    <a class="tab {% if current_view == 'strategy1' %}active{% endif %}" href="/?view=strategy1">稳步抬升</a>
+    {% for s in strategies %}
+    <a class="tab {% if current_view == s.name %}active{% endif %}" href="/?view={{s.name}}">{{s.title or s.name}}</a>
+    {% endfor %}
+</div>
+
+<!-- 稳步抬升视图 -->
+{% if current_view == 'strategy1' %}
+<div class="filter-bar">
+    <label>连续小时数 &gt;=</label>
+    <select id="filterHrs" onchange="applyFilters()">
+        <option value="3">3小时</option><option value="4">4小时</option>
+        <option value="5" selected>5小时</option><option value="6">6小时</option>
+    </select>
+    <label>成交额 &gt;=</label>
+    <select id="filterVol" onchange="applyFilters()">
+        <option value="0">不限</option>
+        <option value="0.5">0.5M USDT</option><option value="1" selected>1M USDT</option>
+        <option value="2">2M USDT</option><option value="5">5M USDT</option>
+    </select>
+    <label>排序</label>
+    <select id="sortBy" onchange="applyFilters()">
+        <option value="vol" selected>按成交额</option>
+        <option value="time">按最新时间</option>
+        <option value="hrs">按连续小时数</option>
+    </select>
+    <span id="s1Count">共 {{s1_data|length}} 个信号</span>
+</div>
+<div id="s1Signals">
+    {% if not s1_data %}
+    <div class="empty">暂无信号数据</div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- 各策略视图 -->
+{% for s in strategies %}
+{% if current_view == s.name %}
+<div class="report-card">
+    <div class="report-title">{{s.title or s.name}}</div>
+    <div class="report-meta">更新时间: {{s.timestamp or '-'}}</div>
+
+    {% if s.data.summary %}
+    <div class="summary-grid">
+        {% for k, v in s.data.summary.items() %}
+        <div class="summary-item">
+            <div class="summary-label">{{k}}</div>
+            <div class="summary-value">{{v}}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if s.data.conditions %}
+    <div class="summary-grid">
+        {% for c in s.data.conditions %}
+        <div class="summary-item">
+            <div class="summary-label">条件</div>
+            <div class="summary-value">{{c}}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% set items_list = s.data['items'] if 'items' in s.data else [] %}
+    {% if items_list %}
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    {% for col in items_list[0].keys() %}
+                    <th>{{col}}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in items_list[:50] %}
+                <tr>
+                    {% for col_name, val in row.items() %}
+                    <td class="{{ 'wrap-text' if col_name in ('indicator','note','raw_analysis') else '' }}">{{ val if col_name != 'indicator' else val.lstrip('：').lstrip(':') }}</td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if not s.data.summary and not s.data.conditions and not s.data.items %}
+    <div class="empty">暂无数据</div>
+    {% endif %}
+</div>
+{% endif %}
+{% endfor %}
+
+<script>
+var allSignals = {{ s1_data | tojson }};
+
+function fmtBJ(d) {
+    var bj = new Date(d.getTime() + 8*3600000);
+    return bj.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+}
+function updateTime() {
+    var el = document.getElementById('bjTime');
+    if (el) el.textContent = '北京时间: ' + fmtBJ(new Date());
+}
+updateTime();
+setInterval(updateTime, 1000);
+
+function applyFilters() {
+    var minHrs = parseInt(document.getElementById('filterHrs').value);
+    var minVol = parseFloat(document.getElementById('filterVol').value);
+    var sortBy = document.getElementById('sortBy').value;
+    var filtered = allSignals.filter(function(d){ return d.hrs >= minHrs && d.vol >= minVol; });
+    if (sortBy === 'time') filtered.sort(function(a,b){return b.startTime.localeCompare(a.startTime)});
+    else if (sortBy === 'hrs') filtered.sort(function(a,b){return b.hrs - a.hrs});
+    else filtered.sort(function(a,b){return b.vol - a.vol});
+    document.getElementById('s1Count').textContent = '共 ' + filtered.length + ' 个信号';
+    var container = document.getElementById('s1Signals');
+    if (!filtered.length) {
+        container.innerHTML = '<div class="empty">暂无符合条件的信号</div>';
+        return;
+    }
+    var html = '';
+    for (var i = 0; i < filtered.length; i++) {
+        var d = filtered[i];
+        var isBig = d.hrs >= 5 || d.vol >= 5;
+        var barsHtml = '';
+        for (var j = 0; j < d.bars.length; j++) {
+            var b = d.bars[j];
+            barsHtml += '<tr><td>' + b.t + '</td><td class="num">' + b.o + '</td><td class="num">' + b.high + '</td><td class="num">' + b.low + '</td><td class="num">' + b.c + '</td><td class="num">' + b.r + '</td><td class="num">' + b.v + '</td></tr>';
+        }
+        html += '<div class="signal' + (isBig?' highlight':'') + '"><div class="signal-header" onclick="this.classList.toggle(\'open\');this.nextElementSibling.classList.toggle(\'open\')"><span class="sym">' + d.symbol + ' <span>' + d.time + '</span></span><div class="sig-info"><span class="vol">' + d.vol + 'M</span><span class="hrs">' + d.hrs + '小时</span><span class="gain">+' + d.gain + '%</span></div><span class="toggle-icon">&#9654;</span></div><div class="signal-body"><table><thead><tr><th>时间</th><th>开盘</th><th>最高</th><th>最低</th><th>收盘</th><th>震幅</th><th>成交额</th></tr></thead><tbody>' + barsHtml + '</tbody></table></div></div>';
+    }
+    container.innerHTML = html;
+}
+
+applyFilters();
+</script>
+</body>
+</html>

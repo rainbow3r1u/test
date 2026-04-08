@@ -1,0 +1,414 @@
+{
+  "title": "布林收敛通道",
+  "timestamp": "2026-04-07 10:39:41",
+  "conditions": [
+    "布林带收敛（宽度<5.0%）",
+    "价格在下轨中轨间运行5根K以上",
+    "贴近中轨"
+  ],
+  "summary": {
+    "total_found": 82
+  },
+  "items": [
+    {
+      "symbol": "DOGEUSDT",
+      "price": 0.09057,
+      "volume": "4.4B",
+      "change": 0.04,
+      "indicator": "收敛4.73% | 反弹2.88%",
+      "note": ""
+    },
+    {
+      "symbol": "FUSDT",
+      "price": 0.005313,
+      "volume": "3.3B",
+      "change": 5.82,
+      "indicator": "收敛4.94% | 反弹3.21%",
+      "note": ""
+    },
+    {
+      "symbol": "HOTUSDT",
+      "price": 0.000393,
+      "volume": "2.3B",
+      "change": -0.25,
+      "indicator": "收敛4.51% | 反弹2.49%",
+      "note": ""
+    },
+    {
+      "symbol": "VTHOUSDT",
+      "price": 0.000543,
+      "volume": "1.8B",
+      "change": 0.33,
+      "indicator": "收敛3.81% | 反弹2.33%",
+      "note": ""
+    },
+    {
+      "symbol": "ANIMEUSDT",
+      "price": 0.004532,
+      "volume": "1.7B",
+      "change": -0.44,
+      "indicator": "收敛4.85% | 反弹4.02%",
+      "note": ""
+    },
+    {
+      "symbol": "ZILUSDT",
+      "price": 0.00382,
+      "volume": "876.0M",
+      "change": 0.26,
+      "indicator": "收敛4.56% | 反弹2.77%",
+      "note": ""
+    },
+    {
+      "symbol": "GPSUSDT",
+      "price": 0.007802,
+      "volume": "854.9M",
+      "change": -0.7,
+      "indicator": "收敛4.86% | 反弹2.66%",
+      "note": ""
+    },
+    {
+      "symbol": "SLPUSDT",
+      "price": 0.00057,
+      "volume": "728.4M",
+      "change": 0.23,
+      "indicator": "收敛4.81% | 反弹2.67%",
+      "note": ""
+    },
+    {
+      "symbol": "JASMYUSDT",
+      "price": 0.005175,
+      "volume": "575.7M",
+      "change": -0.69,
+      "indicator": "收敛4.9% | 反弹2.67%",
+      "note": ""
+    },
+    {
+      "symbol": "TLMUSDT",
+      "price": 0.001588,
+      "volume": "568.2M",
+      "change": -0.56,
+      "indicator": "收敛4.91% | 反弹3.43%",
+      "note": ""
+    },
+    {
+      "symbol": "SIGNUSDT",
+      "price": 0.03188,
+      "volume": "566.0M",
+      "change": 1.46,
+      "indicator": "收敛4.14% | 反弹2.4%",
+      "note": ""
+    },
+    {
+      "symbol": "XRPUSDT",
+      "price": 1.3178,
+      "volume": "398.1M",
+      "change": -0.18,
+      "indicator": "收敛3.55% | 反弹2.13%",
+      "note": ""
+    },
+    {
+      "symbol": "XAIUSDT",
+      "price": 0.00918,
+      "volume": "217.1M",
+      "change": 0.88,
+      "indicator": "收敛4.61% | 反弹2.79%",
+      "note": ""
+    },
+    {
+      "symbol": "WLFIUSDT",
+      "price": 0.0981,
+      "volume": "209.8M",
+      "change": 0.0,
+      "indicator": "收敛4.45% | 反弹2.39%",
+      "note": ""
+    },
+    {
+      "symbol": "GRTUSDT",
+      "price": 0.02364,
+      "volume": "189.3M",
+      "change": -0.21,
+      "indicator": "收敛4.81% | 反弹2.91%",
+      "note": ""
+    },
+    {
+      "symbol": "HOMEUSDT",
+      "price": 0.019299,
+      "volume": "171.9M",
+      "change": -1.12,
+      "indicator": "收敛4.49% | 反弹2.5%",
+      "note": ""
+    },
+    {
+      "symbol": "TUSDT",
+      "price": 0.006026,
+      "volume": "154.6M",
+      "change": 0.05,
+      "indicator": "收敛4.5% | 反弹2.55%",
+      "note": ""
+    },
+    {
+      "symbol": "IOTXUSDT",
+      "price": 0.00447,
+      "volume": "150.6M",
+      "change": 0.0,
+      "indicator": "收敛4.33% | 反弹2.96%",
+      "note": ""
+    },
+    {
+      "symbol": "TRXUSDT",
+      "price": 0.31633,
+      "volume": "130.9M",
+      "change": 0.01,
+      "indicator": "收敛4.97% | 反弹1.79%",
+      "note": ""
+    },
+    {
+      "symbol": "WAXPUSDT",
+      "price": 0.00639,
+      "volume": "113.6M",
+      "change": -0.31,
+      "indicator": "收敛4.55% | 反弹1.73%",
+      "note": ""
+    },
+    {
+      "symbol": "TRUTHUSDT",
+      "price": 0.009219,
+      "volume": "112.3M",
+      "change": 1.64,
+      "indicator": "收敛4.98% | 反弹3.62%",
+      "note": ""
+    },
+    {
+      "symbol": "NFPUSDT",
+      "price": 0.01308,
+      "volume": "110.9M",
+      "change": -2.32,
+      "indicator": "收敛4.63% | 反弹2.28%",
+      "note": ""
+    },
+    {
+      "symbol": "RAREUSDT",
+      "price": 0.01489,
+      "volume": "108.7M",
+      "change": 1.36,
+      "indicator": "收敛4.91% | 反弹2.52%",
+      "note": ""
+    },
+    {
+      "symbol": "TACUSDT",
+      "price": 0.003597,
+      "volume": "107.8M",
+      "change": -1.69,
+      "indicator": "收敛2.77% | 反弹2.1%",
+      "note": ""
+    },
+    {
+      "symbol": "CLOUSDT",
+      "price": 0.09388,
+      "volume": "105.7M",
+      "change": -5.85,
+      "indicator": "收敛4.94% | 反弹2.08%",
+      "note": ""
+    },
+    {
+      "symbol": "SKYUSDT",
+      "price": 0.07558,
+      "volume": "92.4M",
+      "change": -2.11,
+      "indicator": "收敛4.99% | 反弹2.59%",
+      "note": ""
+    },
+    {
+      "symbol": "1000LUNCUSDT",
+      "price": 0.03628,
+      "volume": "78.9M",
+      "change": -0.41,
+      "indicator": "收敛4.1% | 反弹2.84%",
+      "note": ""
+    },
+    {
+      "symbol": "DOTUSDT",
+      "price": 1.24,
+      "volume": "72.9M",
+      "change": 0.0,
+      "indicator": "收敛4.64% | 反弹3.4%",
+      "note": ""
+    },
+    {
+      "symbol": "SPKUSDT",
+      "price": 0.02027,
+      "volume": "61.8M",
+      "change": 0.35,
+      "indicator": "收敛4.99% | 反弹3.54%",
+      "note": ""
+    },
+    {
+      "symbol": "FFUSDT",
+      "price": 0.07038,
+      "volume": "57.9M",
+      "change": -1.03,
+      "indicator": "收敛3.63% | 反弹2.07%",
+      "note": ""
+    },
+    {
+      "symbol": "ERAUSDT",
+      "price": 0.1237,
+      "volume": "57.8M",
+      "change": -3.28,
+      "indicator": "收敛4.84% | 反弹2.54%",
+      "note": ""
+    },
+    {
+      "symbol": "ASTERUSDT",
+      "price": 0.6604,
+      "volume": "50.8M",
+      "change": -0.08,
+      "indicator": "收敛3.04% | 反弹1.67%",
+      "note": ""
+    },
+    {
+      "symbol": "ZKJUSDT",
+      "price": 0.01916,
+      "volume": "47.3M",
+      "change": -1.03,
+      "indicator": "收敛4.44% | 反弹2.35%",
+      "note": ""
+    },
+    {
+      "symbol": "JELLYJELLYUSDT",
+      "price": 0.04167,
+      "volume": "46.8M",
+      "change": 0.68,
+      "indicator": "收敛4.62% | 反弹2.15%",
+      "note": ""
+    },
+    {
+      "symbol": "KAIAUSDT",
+      "price": 0.04675,
+      "volume": "44.4M",
+      "change": -0.4,
+      "indicator": "收敛4.11% | 反弹2.67%",
+      "note": ""
+    },
+    {
+      "symbol": "ZKPUSDT",
+      "price": 0.0697,
+      "volume": "41.9M",
+      "change": -0.47,
+      "indicator": "收敛4.43% | 反弹3.1%",
+      "note": ""
+    },
+    {
+      "symbol": "CCUSDT",
+      "price": 0.14738,
+      "volume": "40.6M",
+      "change": 1.08,
+      "indicator": "收敛4.98% | 反弹4.59%",
+      "note": ""
+    },
+    {
+      "symbol": "MINAUSDT",
+      "price": 0.05416,
+      "volume": "32.6M",
+      "change": -0.79,
+      "indicator": "收敛4.75% | 反弹2.56%",
+      "note": ""
+    },
+    {
+      "symbol": "OXTUSDT",
+      "price": 0.01467,
+      "volume": "30.5M",
+      "change": -1.15,
+      "indicator": "收敛4.78% | 反弹3.25%",
+      "note": ""
+    },
+    {
+      "symbol": "ACXUSDT",
+      "price": 0.04252,
+      "volume": "29.3M",
+      "change": -0.35,
+      "indicator": "收敛4.13% | 反弹2.05%",
+      "note": ""
+    },
+    {
+      "symbol": "SONICUSDT",
+      "price": 0.03636,
+      "volume": "28.6M",
+      "change": -0.22,
+      "indicator": "收敛4.5% | 反弹4.96%",
+      "note": ""
+    },
+    {
+      "symbol": "PARTIUSDT",
+      "price": 0.08246,
+      "volume": "24.3M",
+      "change": 1.66,
+      "indicator": "收敛4.18% | 反弹3.65%",
+      "note": ""
+    },
+    {
+      "symbol": "HANAUSDT",
+      "price": 0.04001,
+      "volume": "21.6M",
+      "change": 0.68,
+      "indicator": "收敛4.2% | 反弹1.89%",
+      "note": ""
+    },
+    {
+      "symbol": "WALUSDT",
+      "price": 0.06926,
+      "volume": "21.5M",
+      "change": -0.27,
+      "indicator": "收敛4.98% | 反弹2.59%",
+      "note": ""
+    },
+    {
+      "symbol": "CVCUSDT",
+      "price": 0.0296,
+      "volume": "17.8M",
+      "change": -1.2,
+      "indicator": "收敛4.97% | 反弹2.91%",
+      "note": ""
+    },
+    {
+      "symbol": "IRUSDT",
+      "price": 0.03553,
+      "volume": "17.1M",
+      "change": -3.4,
+      "indicator": "收敛4.96% | 反弹2.79%",
+      "note": ""
+    },
+    {
+      "symbol": "TONUSDT",
+      "price": 1.2322,
+      "volume": "16.7M",
+      "change": -0.2,
+      "indicator": "收敛4.5% | 反弹2.29%",
+      "note": ""
+    },
+    {
+      "symbol": "MANTAUSDT",
+      "price": 0.06063,
+      "volume": "14.4M",
+      "change": -0.15,
+      "indicator": "收敛4.94% | 反弹2.18%",
+      "note": ""
+    },
+    {
+      "symbol": "WETUSDT",
+      "price": 0.1025,
+      "volume": "14.4M",
+      "change": -1.1,
+      "indicator": "收敛4.89% | 反弹3.64%",
+      "note": ""
+    },
+    {
+      "symbol": "XTZUSDT",
+      "price": 0.343,
+      "volume": "13.0M",
+      "change": 0.59,
+      "indicator": "收敛4.92% | 反弹3.03%",
+      "note": ""
+    }
+  ]
+}
