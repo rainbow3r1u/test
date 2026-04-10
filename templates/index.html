@@ -243,6 +243,38 @@
 
 {% endif %}
 
+<!-- 圆弧底突破视图 -->
+{% if current_view == 'arc_bottom' %}
+<div class="report-card" style="margin:14px 20px 12px;">
+    <div class="report-title">圆弧底突破</div>
+    <div class="report-meta">更新时间: <span id="updateTime"></span></div>
+    
+    <div class="summary-grid" style="margin-bottom:10px;">
+        <div class="summary-item">
+            <div class="summary-label">检查时间</div>
+            <div class="summary-value" id="checkTime">-</div>
+        </div>
+        <div class="summary-item" style="display:none;">
+            <div class="summary-label">下次检查</div>
+            <div class="summary-value" id="nextCheckTime">-</div>
+        </div>
+        <div class="summary-item" style="display:none;">
+            <div class="summary-label">倒计时</div>
+            <div class="summary-value" id="countdown">-</div>
+        </div>
+    </div>
+    
+    <div class="summary-grid" id="checkStatsGrid" style="display:none;"></div>
+    
+    <div class="filter-bar" style="margin-top:10px;margin-bottom:10px;">
+        <button class="realtime-btn" style="padding:6px 14px;font-size:13px;" onclick="triggerScan()">触发扫描</button>
+    </div>
+    
+    <span id="s1Count">共 {{s1_data|length}} 个信号</span>
+    <div id="stepSymbolsContainer" style="margin-top:12px;"></div>
+</div>
+{% endif %}
+
 <!-- 各策略视图 -->
 {% for s in strategies %}
 {% if current_view == s.name %}
@@ -346,7 +378,7 @@
 
 <script>
 var currentView = "{{ current_view }}";
-var allSignals = {% if current_view == 'strategy1_pro' %}{{ s1_pro_data | tojson | safe }}{% elif current_view == 'arc_bottom' %}{{ arc_data | tojson | safe }}{% else %}{{ s1_data | tojson | safe }}{% endif %};
+var allSignals = {{ s1_data | tojson | safe }};
 var checkStats = {};
 var checkTime = '';
 var nextCheckTime = '';
@@ -1012,8 +1044,15 @@ document.addEventListener('keydown', function(e) {
 });
 
 function applyFilters() {
-    var minHrs = parseInt(document.getElementById('filterHrs').value);
-    var minVol = parseFloat(document.getElementById('filterVol').value);
+    if (currentView === 'arc_bottom') {
+        updateStepSymbols();
+        return;
+    }
+    
+    var filterHrsElem = document.getElementById('filterHrs');
+    var filterVolElem = document.getElementById('filterVol');
+    var minHrs = filterHrsElem ? parseInt(filterHrsElem.value) : 3;
+    var minVol = filterVolElem ? parseFloat(filterVolElem.value) : 0;
     
     if (allSymbolsBars.length > 0) {
         var calcResult = recalculateSteps(minHrs);
@@ -1040,11 +1079,12 @@ function applyFilters() {
 }
 
 function loadCheckInfo() {
-    var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : 'strategy1';
+    var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : (currentView === 'arc_bottom' ? 'arc_bottom' : 'strategy1');
     fetch('/api/' + strategyId)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.code === 0 && data.data) {
+                allSignals = data.data;
                 fetch('/api/report/' + strategyId)
                     .then(function(r) { return r.json(); })
                     .then(function(report) {
@@ -1088,7 +1128,7 @@ function triggerScan() {
     if (grid) {
         grid.innerHTML = '<div class="summary-item" style="grid-column:1/-1;text-align:center;color:#ffa657;">扫描中，请稍候...</div>';
     }
-    var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : 'strategy1';
+    var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : (currentView === 'arc_bottom' ? 'arc_bottom' : 'strategy1');
     fetch('/api/strategy1/scan?strategy=' + strategyId, {method: 'POST'})
         .then(function(r) { return r.json(); })
         .then(function(data) {
@@ -1110,7 +1150,7 @@ function debugStrategy1Symbol() {
         return;
     }
     result.innerHTML = '<span style="color:#ffa657;">调试中...</span>';
-    var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : 'strategy1';
+    var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : (currentView === 'arc_bottom' ? 'arc_bottom' : 'strategy1');
     fetch('/api/strategy1/debug?symbol=' + encodeURIComponent(symbol) + '&strategy=' + strategyId)
         .then(function(r) { return r.json(); })
         .then(function(res) {

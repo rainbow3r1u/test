@@ -201,10 +201,26 @@ def health():
     return jsonify({'status': 'ok', 'time': datetime.now().isoformat()})
 
 
-@app.route('/api/strategy1')
-def api_strategy1():
+@app.route('/api/<strategy>')
+def api_strategy(strategy):
+    if strategy not in ['strategy1', 'strategy1_pro', 'arc_bottom']:
+        return jsonify({'code': 1, 'msg': '无效的策略'})
+        
     try:
-        signal_file = '/var/www/all_signals.json'
+        file_map = {
+            'strategy1': '/var/www/all_signals.json',
+            'strategy1_pro': '/var/www/all_signals_pro.json',
+            'arc_bottom': '/var/www/all_signals_arc.json'
+        }
+        signal_file = file_map.get(strategy)
+        if not os.path.exists(signal_file):
+            fallback_map = {
+                'strategy1': 'all_signals.json',
+                'strategy1_pro': 'all_signals_pro.json',
+                'arc_bottom': 'all_signals_arc.json'
+            }
+            signal_file = str(config.DATA_DIR / fallback_map.get(strategy))
+
         if os.path.exists(signal_file):
             with open(signal_file, 'r', encoding='utf-8') as f:
                 data = json.load(f)
@@ -444,7 +460,7 @@ def api_strategy1_scan():
                 with open(target_report, 'w', encoding='utf-8') as f:
                     json.dump(report_dict, f, ensure_ascii=False, indent=2)
                 
-                signals = [item.to_dict() for item in report.items]
+                signals = [item.to_dict() if hasattr(item, 'to_dict') else item for item in report.items]
                 try:
                     with open(target_signals, 'w', encoding='utf-8') as f:
                         json.dump(signals, f, ensure_ascii=False, indent=2)

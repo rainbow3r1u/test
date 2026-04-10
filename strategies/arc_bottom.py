@@ -1,6 +1,6 @@
 import pandas as pd
 from datetime import datetime, timezone
-from .base import BaseStrategy, StrategyReport
+from .base import BaseStrategy
 
 class ArcBottomStrategy(BaseStrategy):
     """
@@ -14,7 +14,7 @@ class ArcBottomStrategy(BaseStrategy):
     def strategy_name(self) -> str:
         return '圆弧底突破'
 
-    def scan(self, data: dict, **kwargs) -> StrategyReport:
+    def scan(self) -> dict:
         # =========================================================================
         # 👑 策略核心参数配置区 (你可以随时在这里修改参数进行测试)
         # =========================================================================
@@ -39,11 +39,21 @@ class ArcBottomStrategy(BaseStrategy):
         # =========================================================================
         
         items = []
-        utc_now = datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M:%S UTC')
+        utc_now = datetime.utcnow()
         
-        for symbol, df in data.items():
-            if len(df) < PARAMS['min_history']:
+        if self.df is None:
+            self.load_data()
+            
+        df_all = self.df.copy()
+        symbols = df_all['symbol'].unique()
+        
+        for symbol in symbols:
+            df = df_all[df_all['symbol'] == symbol].copy()
+            if df.empty or len(df) < PARAMS['min_history']:
                 continue
+                
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df = df.sort_values('timestamp').reset_index(drop=True)
             
             # 取最近的时间窗口
             recent = df.iloc[-PARAMS['lookback_hours']:].reset_index(drop=True)
@@ -126,6 +136,21 @@ class ArcBottomStrategy(BaseStrategy):
         # 按照跌幅大小降序排列，优先展示跌得最狠且成功圆弧底的币
         items.sort(key=lambda x: x.get('drop_pct', 0), reverse=True)
         
+        return items
+
+    def create_report(self, items: list, **kwargs):
+        from models.signal import StrategyReport
+        utc_now = datetime.utcnow()
+        PARAMS = {
+            'lookback_hours': 120,
+            'min_history': 50,
+            'min_drop_pct': 0.01,
+            'max_drop_pct': 0.10,
+            'left_max_bulls': 1,
+            'box_max_amp': 0.05,
+            'box_min_bars': 3,
+            'right_bull_bars': 2
+        }
         return StrategyReport(
             strategy_name=self.strategy_id,
             title=self.strategy_name,
@@ -137,7 +162,7 @@ class ArcBottomStrategy(BaseStrategy):
             ],
             items=items,
             summary={
-                'check_time': utc_now,
+                'check_time': utc_now.strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'total_found': len(items),
                 'params': PARAMS
             }
