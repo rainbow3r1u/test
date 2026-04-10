@@ -469,7 +469,7 @@ def api_strategy1_scan():
                         json.dump(signals, f, ensure_ascii=False, indent=2)
                         
         except Exception as e:
-            logger.error(f"扫描执行失败: {e}")
+            logger.exception(f"扫描执行失败: {e}")
         finally:
             with scan_lock:
                 is_scanning = False
@@ -585,6 +585,107 @@ def api_strategy1_debug():
         
     except Exception as e:
         logger.error(f"调试接口出错: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
+@app.route('/api/arc_bottom/debug')
+def api_arc_bottom_debug():
+    symbol = request.args.get('symbol', '').strip().upper()
+    if not symbol:
+        return jsonify({'code': 1, 'msg': '缺少 symbol 参数'})
+    if not symbol.endswith('USDT'):
+        symbol += 'USDT'
+        
+    try:
+        report_data = get_latest_report('arc_bottom')
+        if not report_data:
+            return jsonify({'code': 1, 'msg': '没有找到 arc_bottom 报告数据'})
+            
+        report_time = report_data.get('timestamp', '')
+        all_symbols_bars = report_data.get('metadata', {}).get('all_symbols_bars', [])
+        
+        target = None
+        for item in all_symbols_bars:
+            if item['symbol'] == symbol:
+                target = item
+                break
+                
+        if not target:
+            return jsonify({'code': 1, 'msg': f'在最新报告({report_time})中未找到 {symbol} 的扫描数据。'})
+            
+        bars = target.get('bars', [])
+        import pandas as pd
+        df = pd.DataFrame(bars)
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        
+        PARAMS = report_data.get('summary', {}).get('params', {
+            'lookback_hours': 120, 'min_drop_pct': 0.01, 'max_drop_pct': 0.10,
+            'left_max_bulls': 1, 'box_max_amp': 0.05, 'box_min_bars': 3, 'right_bull_bars': 2
+        })
+        
+        recent = df.iloc[-PARAMS['lookback_hours']:].reset_index(drop=True)
+        n = len(recent)
+        if n < PARAMS['box_min_bars'] + PARAMS['right_bull_bars']: 
+            return jsonify({'code': 1, 'msg': f'{symbol} 历史K线不足'})
+            
+        details = []
+        summary = f"报告时间: {report_time} | 来源: api/report/arc_bottom\n"
+        
+        right_bars = recent.iloc[-PARAMS['right_bull_bars']:]
+        is_breakout = all(right_bars['close'] > right_bars['open'])
+        
+        if not is_breakout:
+            details.append({'step': '右侧突破', 'time': f"{right_bars.iloc[0]['timestamp'].strftime('%H:%M')}~{right_bars.iloc[-1]['timestamp'].strftime('%H:%M')}", 'status': '淘汰', 'desc': f"最新 {PARAMS['right_bull_bars']} 小时未能全部收阳线"})
+            summary += f"状态: 未通过 | 原因: 未满足右侧突破条件\n"
+            return jsonify({'code': 0, 'data': {'symbol': symbol, 'summary': summary, 'details': details}})
+            
+        details.append({'step': '右侧突破', 'time': f"{right_bars.iloc[0]['timestamp'].strftime('%H:%M')}~{right_bars.iloc[-1]['timestamp'].strftime('%H:%M')}", 'status': '通过', 'desc': f"最新 {PARAMS['right_bull_bars']} 小时连阳突破"})
+        
+        found = False
+        for box_len in range(PARAMS['box_min_bars'], 24):
+            box_end_idx = n - PARAMS['right_bull_bars'] - 1
+            box_start_idx = box_end_idx - box_len + 1
+            if box_start_idx < 0: break
+            
+            box_segment = recent.iloc[box_start_idx : box_end_idx + 1]
+            box_high = box_segment['high'].max()
+            box_low = box_segment['low'].min()
+            box_amp = (box_high - box_low) / box_low if box_low > 0 else 0
+            
+            if box_amp > PARAMS['box_max_amp']:
+                continue
+                
+            for left_len in range(3, 24):
+                left_start_idx = box_start_idx - left_len
+                left_end_idx = box_start_idx - 1
+                if left_start_idx < 0: break
+                
+                left_segment = recent.iloc[left_start_idx : left_end_idx + 1]
+                bullish_count = sum(left_segment['close'] > left_segment['open'])
+                if bullish_count > PARAMS['left_max_bulls']:
+                    continue
+                    
+                start_body_high = max(left_segment.iloc[0]['open'], left_segment.iloc[0]['close'])
+                end_body_low = min(left_segment.iloc[-1]['open'], left_segment.iloc[-1]['close'])
+                if start_body_high <= 0: continue
+                
+                drop_pct = (start_body_high - end_body_low) / start_body_high
+                
+                if PARAMS['min_drop_pct'] <= drop_pct <= PARAMS['max_drop_pct']:
+                    details.append({'step': '底部盘整', 'time': f"{box_segment.iloc[0]['timestamp'].strftime('%H:%M')}~{box_segment.iloc[-1]['timestamp'].strftime('%H:%M')}", 'status': '通过', 'desc': f"盘整 {box_len} 小时, 振幅 {box_amp*100:.2f}%"})
+                    details.append({'step': '左侧下跌', 'time': f"{left_segment.iloc[0]['timestamp'].strftime('%H:%M')}~{left_segment.iloc[-1]['timestamp'].strftime('%H:%M')}", 'status': '通过', 'desc': f"下跌 {left_len} 小时, 跌幅 {drop_pct*100:.2f}%, 反抽 {bullish_count} 根"})
+                    summary += f"状态: 完全通过 | 满足圆弧底形态\n"
+                    found = True
+                    break
+            if found: break
+            
+        if not found:
+            details.append({'step': '左侧及盘整', 'time': '-', 'status': '淘汰', 'desc': "虽有突破，但未能找到匹配的 [左侧下跌+底部箱体] 形态（振幅过大或跌幅不符）"})
+            summary += f"状态: 未通过 | 原因: 左侧及盘整形态不满足条件\n"
+            
+        return jsonify({'code': 0, 'data': {'symbol': symbol, 'summary': summary, 'details': details}})
+        
+    except Exception as e:
+        logger.exception(f"圆弧底调试接口出错: {e}")
         return jsonify({'code': 1, 'msg': str(e)})
 
 

@@ -63,6 +63,7 @@ class StrategyReport:
     summary: Dict[str, Any] = field(default_factory=dict)
     items: List[Dict[str, Any]] = field(default_factory=list)
     raw_analysis: Optional[str] = None
+    metadata: Dict[str, Any] = field(default_factory=dict)
     
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -72,7 +73,8 @@ class StrategyReport:
             'conditions': self.conditions,
             'summary': self.summary,
             'items': self.items,
-            'raw_analysis': self.raw_analysis
+            'raw_analysis': self.raw_analysis,
+            'metadata': self.metadata
         }
     
     @classmethod
@@ -87,9 +89,10 @@ class StrategyReport:
         return cls(
             strategy_name=data.get('strategy_name', ''),
             title=data.get('title', ''),
-            timestamp=ts or datetime.now(),
+            timestamp=ts,
             conditions=data.get('conditions', []),
             summary=data.get('summary', {}),
             items=data.get('items', []),
-            raw_analysis=data.get('raw_analysis')
+            raw_analysis=data.get('raw_analysis'),
+            metadata=data.get('metadata', {})
         )

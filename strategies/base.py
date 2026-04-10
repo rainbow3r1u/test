@@ -90,7 +90,14 @@ class BaseStrategy(ABC):
         if self.df is None:
             self.load_data()
 
-        items = self.scan()
+        scan_result = self.scan()
+        if isinstance(scan_result, dict):
+            items = scan_result.get('items', [])
+            report_kwargs = scan_result.copy()
+            report_kwargs.pop('items', None)
+        else:
+            items = scan_result
+            report_kwargs = {}
 
         if generate_charts and items:
             symbols = [item.get('symbol', '') for item in items[:30]]
@@ -98,7 +105,7 @@ class BaseStrategy(ABC):
             if symbols:
                 self.generate_charts(symbols)
 
-        report = self.create_report(items)
+        report = self.create_report(items, **report_kwargs)
 
         self.save_report(report, save_to_db=save_to_db)
 

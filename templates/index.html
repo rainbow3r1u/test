@@ -272,6 +272,15 @@
     
     <span id="s1Count">共 {{s1_data|length}} 个信号</span>
     <div id="stepSymbolsContainer" style="margin-top:12px;"></div>
+
+    <div style="margin-top:12px;padding:10px;background:#0d1117;border:1px solid #30363d;border-radius:8px;">
+        <div style="font-size:13px;color:#8b949e;margin-bottom:8px;">圆弧底策略调试（输入币种查看形态参数详情）</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+            <input id="debugArcSymbolInput" placeholder="例如 SOLVUSDT 或 SOLV" style="background:#161b22;border:1px solid #30363d;color:#e6edf3;padding:6px 10px;border-radius:6px;min-width:220px;">
+            <button onclick="debugArcBottomSymbol()" style="background:#1f6feb;border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;">调试</button>
+        </div>
+        <div id="debugArcResult" style="margin-top:10px;font-size:12px;color:#8b949e;">输入symbol后点击调试</div>
+    </div>
 </div>
 {% endif %}
 
@@ -1199,7 +1208,66 @@ function debugStrategy1Symbol() {
         });
 }
 
-function recalculateSteps(minHrs) {
+function debugArcBottomSymbol() {
+    var input = document.getElementById('debugArcSymbolInput');
+    var result = document.getElementById('debugArcResult');
+    if (!input || !result) return;
+    var symbol = (input.value || '').trim();
+    if (!symbol) {
+        result.innerHTML = '<span style="color:#f85149;">请输入symbol</span>';
+        return;
+    }
+    result.innerHTML = '<span style="color:#ffa657;">调试中...</span>';
+    fetch('/api/arc_bottom/debug?symbol=' + encodeURIComponent(symbol))
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.code !== 0 || !res.data) {
+                result.innerHTML = '<span style="color:#f85149;">' + (res.msg || '调试失败') + '</span>';
+                return;
+            }
+            var d = res.data;
+            var html = '';
+            html += '<div style="margin-bottom:6px;"><span style="color:#58a6ff;font-weight:600;font-size:14px;">' + d.symbol + '</span></div>';
+            
+            var summaryLines = (d.summary || '').split('\n');
+            html += '<div style="margin-bottom:10px;line-height:1.6;background:rgba(88,166,255,0.05);padding:8px;border-radius:6px;border:1px solid #30363d;">';
+            for (var i = 0; i < summaryLines.length; i++) {
+                if (summaryLines[i].trim()) {
+                    html += '<div>' + summaryLines[i] + '</div>';
+                }
+            }
+            html += '</div>';
+            
+            if (d.details && d.details.length > 0) {
+                html += '<table style="width:100%;border-collapse:collapse;font-size:12px;margin-top:10px;background:#0d1117;">';
+                html += '<thead><tr style="color:#8b949e;border-bottom:1px solid #30363d;background:#161b22;">';
+                html += '<th style="padding:8px;text-align:left;">阶段</th>';
+                html += '<th style="padding:8px;text-align:left;">时间区间</th>';
+                html += '<th style="padding:8px;text-align:left;">状态</th>';
+                html += '<th style="padding:8px;text-align:left;">说明</th>';
+                html += '</tr></thead><tbody>';
+                
+                for (var j = 0; j < d.details.length; j++) {
+                    var detail = d.details[j];
+                    var statusColor = detail.status === '通过' ? '#7ee787' : '#f85149';
+                    html += '<tr style="border-bottom:1px solid #21262d;">';
+                    html += '<td style="padding:8px;color:#c9d1d9;">' + detail.step + '</td>';
+                    html += '<td style="padding:8px;color:#8b949e;">' + detail.time + '</td>';
+                    html += '<td style="padding:8px;color:' + statusColor + ';font-weight:bold;">' + detail.status + '</td>';
+                    html += '<td style="padding:8px;color:#8b949e;">' + detail.desc + '</td>';
+                    html += '</tr>';
+                }
+                html += '</tbody></table>';
+            }
+            result.innerHTML = html;
+        })
+        .catch(function(e) {
+            result.innerHTML = '<span style="color:#f85149;">请求出错: ' + e + '</span>';
+            console.error(e);
+        });
+}
+
+function init() {
     var results = [];
     var newStepSymbols = {
         'step1': [], 'step2': [], 'step3': [], 'step4': [], 'step5': [], 'step6': []

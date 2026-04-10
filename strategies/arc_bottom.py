@@ -47,6 +47,8 @@ class ArcBottomStrategy(BaseStrategy):
         df_all = self.df.copy()
         symbols = df_all['symbol'].unique()
         
+        all_symbols_bars = []
+        
         for symbol in symbols:
             df = df_all[df_all['symbol'] == symbol].copy()
             if df.empty or len(df) < PARAMS['min_history']:
@@ -54,6 +56,23 @@ class ArcBottomStrategy(BaseStrategy):
                 
             df['timestamp'] = pd.to_datetime(df['timestamp'])
             df = df.sort_values('timestamp').reset_index(drop=True)
+            
+            # 记录用于 debug 的 bars
+            recent_debug = df.iloc[-PARAMS['lookback_hours']:].reset_index(drop=True)
+            bars_raw = []
+            for _, row in recent_debug.iterrows():
+                bars_raw.append({
+                    'timestamp': row['timestamp'].strftime('%Y-%m-%d %H:%M:%S'),
+                    'open': row['open'],
+                    'high': row['high'],
+                    'low': row['low'],
+                    'close': row['close'],
+                    'volume': row['volume']
+                })
+            all_symbols_bars.append({
+                'symbol': symbol,
+                'bars': bars_raw
+            })
             
             # 取最近的时间窗口
             recent = df.iloc[-PARAMS['lookback_hours']:].reset_index(drop=True)
@@ -136,9 +155,12 @@ class ArcBottomStrategy(BaseStrategy):
         # 按照跌幅大小降序排列，优先展示跌得最狠且成功圆弧底的币
         items.sort(key=lambda x: x.get('drop_pct', 0), reverse=True)
         
-        return items
+        return {
+            'items': items,
+            'all_symbols_bars': all_symbols_bars
+        }
 
-    def create_report(self, items: list, **kwargs):
+    def create_report(self, items: list, all_symbols_bars: list = None, **kwargs):
         from models.signal import StrategyReport
         utc_now = datetime.utcnow()
         PARAMS = {
@@ -165,6 +187,9 @@ class ArcBottomStrategy(BaseStrategy):
                 'check_time': utc_now.strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'total_found': len(items),
                 'params': PARAMS
+            },
+            metadata={
+                'all_symbols_bars': all_symbols_bars or []
             }
         )
 
