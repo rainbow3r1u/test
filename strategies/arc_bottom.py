@@ -60,16 +60,6 @@ class ArcBottomStrategy(BaseStrategy):
             quote_vol_arr = df['quote_volume'].values.astype(float).tolist()
             timestamps = df['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').values.tolist()
             
-            # Build debug bars for all_symbols_bars
-            lookback = PARAMS['lookback_hours']
-            recent_debug = df.iloc[-lookback:].copy()
-            recent_debug['timestamp'] = recent_debug['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S')
-            bars_raw = recent_debug[['timestamp', 'open', 'high', 'low', 'close', 'volume']].to_dict('records')
-            all_symbols_bars.append({
-                'symbol': symbol,
-                'bars': bars_raw
-            })
-            
             # Call Rust engine
             res = crypto_engine.scan_single_symbol(
                 symbol,

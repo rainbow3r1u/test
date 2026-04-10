@@ -603,21 +603,18 @@ def api_arc_bottom_debug():
             return jsonify({'code': 1, 'msg': '没有找到 arc_bottom 报告数据'})
             
         report_time = report_data.get('timestamp', '')
-        all_symbols_bars = report_data.get('metadata', {}).get('all_symbols_bars', [])
         
-        target = None
-        for item in all_symbols_bars:
-            if item['symbol'] == symbol:
-                target = item
-                break
-                
-        if not target:
-            return jsonify({'code': 1, 'msg': f'在最新报告({report_time})中未找到 {symbol} 的扫描数据。'})
-            
-        bars = target.get('bars', [])
+        # 实时拉取最新数据，替代过时的 all_symbols_bars
+        from core.data_loader import DataLoader
         import pandas as pd
-        df = pd.DataFrame(bars)
-        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        loader = DataLoader()
+        df_all = loader.get_klines()
+        df = df_all[df_all['symbol'] == symbol].copy()
+        if df.empty:
+            return jsonify({'code': 1, 'msg': f'未找到 {symbol} 的数据。'})
+            
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df = df.sort_values('timestamp').reset_index(drop=True)
         
         def get_param(name, default, type_func):
             val = request.args.get(name)
