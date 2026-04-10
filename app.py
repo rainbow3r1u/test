@@ -1,36 +1,54 @@
 #!/usr/bin/env python3
 """
 加密货币策略扫描 - Web服务
-手机电脑都能访问的本地网页
+重构版本：模块化、统一接口
 """
-
 import os
 import io
 import json
 import glob
 import time
+import threading
+from datetime import datetime
+from pathlib import Path
+from typing import Dict, Any, List
+
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
-from datetime import datetime
 from flask import Flask, render_template, jsonify, Response, send_file, request
-
-import ccxt
-import pandas as pd
-import numpy as np
+from flask_socketio import SocketIO, emit
 
 import sys
-sys.path.insert(0, os.path.dirname(__file__))
+sys.path.insert(0, str(Path(__file__).parent))
 from configs import config
+from utils.logger import get_logger
+from core.data_loader import DataLoader
+from core.chart_generator import ChartGenerator
+from core.database import Database
 
+logger = get_logger('web')
 app = Flask(__name__)
-app.template_folder = 'templates'
-app.static_folder = 'static'
+app.config['SECRET_KEY'] = 'crypto-scanner-secret-key-2024'
 
-def get_latest_report(strategy_name):
-    """获取某个策略的最新报告"""
-    pattern = os.path.join(config.OUTPUT_DIR, f'{strategy_name}_*.json')
+@app.after_request
+def add_no_cache_headers(response):
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
+app.template_folder = str(Path(__file__).parent / 'templates')
+app.static_folder = str(config.STATIC_DIR)
+
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+
+from utils.websocket_manager import ws_manager
+ws_manager.set_socketio(socketio)
+
+
+def get_latest_report(strategy_name: str) -> Dict[str, Any]:
+    pattern = str(config.OUTPUT_DIR / f'{strategy_name}_*.json')
     files = glob.glob(pattern)
     if not files:
         return None
@@ -38,12 +56,11 @@ def get_latest_report(strategy_name):
     with open(latest, 'r', encoding='utf-8') as f:
         return json.load(f)
 
-def get_all_reports():
-    """获取所有报告，每个策略只保留最新的"""
-    pattern = os.path.join(config.OUTPUT_DIR, '*.json')
+
+def get_all_reports() -> List[Dict[str, Any]]:
+    pattern = str(config.OUTPUT_DIR / '*.json')
     files = glob.glob(pattern)
     
-    # 按策略分组，每组只取最新的
     latest_by_strategy = {}
     for f in files:
         try:
@@ -52,13 +69,11 @@ def get_all_reports():
                 name = data.get('strategy_name', os.path.basename(f))
                 timestamp = data.get('timestamp', '')
                 
-                # 解析时间用于比较
                 try:
                     ts = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
                 except:
                     ts = datetime.min
                 
-                # 只保留每个策略最新的一条
                 if name not in latest_by_strategy:
                     latest_by_strategy[name] = {
                         'name': name,
@@ -81,15 +96,15 @@ def get_all_reports():
             pass
     
     reports = list(latest_by_strategy.values())
-    # 按时间排序，最新的在前
     reports.sort(key=lambda x: x.get('ts', datetime.min), reverse=True)
     return reports
+
 
 @app.route('/')
 def index():
     view = request.args.get('view', 'strategy1')
     reports = get_all_reports()
-    # 每个策略只取最新一条
+    
     latest_by_name = {}
     for r in reports:
         name = r.get('name', '')
@@ -99,31 +114,68 @@ def index():
         except:
             ts = datetime.min
         if name not in latest_by_name or ts > latest_by_name[name]['ts']:
-            latest_by_name[name] = {'name': name, 'timestamp': ts_str, 'title': r.get('title',''), 'ts': ts, 'data': r.get('data',{})}
+            latest_by_name[name] = {
+                'name': name, 
+                'timestamp': ts_str, 
+                'title': r.get('title',''), 
+                'ts': ts, 
+                'data': r.get('data',{})
+            }
     
-    strategy_names = ['coin_quality','deepseek_strategy','bollinger_converge','volume_daily']
-    strategies = [{'name': n, 'title': latest_by_name.get(n,{}).get('title',''), 'timestamp': latest_by_name.get(n,{}).get('timestamp',''), 'data': latest_by_name.get(n,{}).get('data',{})} for n in strategy_names]
+    name_mapping = {
+        'coin_quality': 'coin_quality',
+        'deepseek': 'deepseek_strategy',
+        'bollinger': 'bollinger_converge',
+        'volume': 'volume_daily',
+        'strategy1': 'strategy1'
+    }
+    strategy_names = ['coin_quality', 'deepseek', 'bollinger', 'volume']
+    strategies = []
+    for n in strategy_names:
+        data = latest_by_name.get(n, {})
+        strategies.append({
+            'name': name_mapping.get(n, n),
+            'title': data.get('title', ''),
+            'timestamp': data.get('timestamp', ''),
+            'data': data.get('data', {})
+        })
     
-    # 预填稳步抬升数据
     s1_data = []
-    s1_file = '/var/www/all_signals.json'
+    if view == 'strategy1_pro':
+        s1_file = '/var/www/all_signals_pro.json'
+    elif view == 'arc_bottom':
+        s1_file = '/var/www/all_signals_arc.json'
+    else:
+        s1_file = '/var/www/all_signals.json'
+        
+    if not os.path.exists(s1_file):
+        # Fallback to local data dir if /var/www doesn't exist
+        fallback_map = {
+            'strategy1_pro': 'all_signals_pro.json',
+            'arc_bottom': 'all_signals_arc.json'
+        }
+        s1_file = str(config.DATA_DIR / fallback_map.get(view, 'all_signals.json'))
+        
     if os.path.exists(s1_file):
-        with open(s1_file, 'r', encoding='utf-8') as f:
-            s1_data = json.load(f)
+        try:
+            with open(s1_file, 'r', encoding='utf-8') as f:
+                s1_data = json.load(f)
+        except:
+            pass
     
     return render_template('index.html', strategies=strategies, s1_data=s1_data, current_view=view)
 
+
 @app.route('/report/<strategy>')
 def report(strategy):
-    """单个报告页面"""
     report = get_latest_report(strategy)
     if report is None:
         return "报告不存在", 404
     return jsonify(report)
 
+
 @app.route('/api/reports')
 def api_reports():
-    """API: 获取所有报告列表"""
     reports = get_all_reports()
     return jsonify({
         'code': 0,
@@ -135,29 +187,23 @@ def api_reports():
         } for r in reports]
     })
 
+
 @app.route('/api/report/<strategy>')
 def api_report(strategy):
-    """API: 获取某个策略的最新报告"""
     report = get_latest_report(strategy)
     if report is None:
         return jsonify({'code': 1, 'msg': '报告不存在'})
     return jsonify({'code': 0, 'data': report})
 
+
 @app.route('/health')
 def health():
-    """健康检查"""
     return jsonify({'status': 'ok', 'time': datetime.now().isoformat()})
 
-@app.route('/strategy1')
-def strategy1():
-    """策略1：连续缩量震荡上行信号页面"""
-    return render_template('strategy1.html')
 
 @app.route('/api/strategy1')
 def api_strategy1():
-    """API: 获取策略1信号数据（读本地静态文件）"""
     try:
-        # 读预生成的信号文件
         signal_file = '/var/www/all_signals.json'
         if os.path.exists(signal_file):
             with open(signal_file, 'r', encoding='utf-8') as f:
@@ -168,260 +214,364 @@ def api_strategy1():
     except Exception as e:
         return jsonify({'code': 1, 'msg': str(e)})
 
-@app.route('/preload/<symbol>')
-def preload(symbol):
-    """预加载K线图到本地"""
-    symbol = symbol.replace('_', '/')
-    if not symbol.endswith(':USDT'):
-        symbol = symbol + '/USDT:USDT'
-    
-    # 先检查是否有缓存
-    cache_dir = os.path.join(os.path.dirname(__file__), 'static', 'charts')
-    os.makedirs(cache_dir, exist_ok=True)
-    cache_file = os.path.join(cache_dir, f'{symbol.replace("/", "_")}.png')
-    
-    # 缓存1小时
-    if os.path.exists(cache_file) and os.path.getmtime(cache_file) > time.time() - 3600:
-        return send_file(cache_file, mimetype='image/png')
-    
+
+@app.route('/api/signals/<strategy>')
+def api_signals(strategy):
     try:
-        exchange = ccxt.binance({
-            'enableRateLimit': True,
-            'options': {'defaultType': 'future'}
-        })
-        
-        ohlcv_1h = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=24)
-        ohlcv_4h = exchange.fetch_ohlcv(symbol, timeframe='4h', limit=40)
-        
-        if not ohlcv_1h:
-            return "No data", 404
-        
-        df_1h = pd.DataFrame(ohlcv_1h, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df_4h = pd.DataFrame(ohlcv_4h, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        
-        # 4小时K线聚合成日K线
-        df_4h_sorted = df_4h.sort_values('timestamp').reset_index(drop=True)
-        daily_data = []
-        for i in range(0, len(df_4h_sorted) - 3, 4):
-            group = df_4h_sorted.iloc[i:i+4]
-            daily_data.append({
-                'open': group.iloc[0]['open'],
-                'high': group['high'].max(),
-                'low': group['low'].min(),
-                'close': group.iloc[-1]['close'],
-                'volume': group['volume'].sum()
-            })
-        df_daily = pd.DataFrame(daily_data).tail(10)
-        df_4h_6 = df_4h.tail(6)
-        
-        plt.style.use('dark_background')
-        fig = plt.figure(figsize=(18, 16))
-        gs = fig.add_gridspec(3, 1, height_ratios=[1.2, 1, 0.8], hspace=0.25)
-        ax1 = fig.add_subplot(gs[0])
-        ax2 = fig.add_subplot(gs[1])
-        ax3 = fig.add_subplot(gs[2])
-        fig.patch.set_facecolor('#1a1a1a')
-        
-        # 1小时K线
-        for i in range(len(df_1h)):
-            o = df_1h.iloc[i]['open']
-            h = df_1h.iloc[i]['high']
-            l = df_1h.iloc[i]['low']
-            c = df_1h.iloc[i]['close']
-            color = '#00a854' if c >= o else '#eb3c3c'
-            ax1.plot([i, i], [l, h], color=color, linewidth=1)
-            width = 0.6
-            if c >= o:
-                ax1.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
-            else:
-                ax1.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
-        ax1.set_facecolor('#1a1a1a')
-        ax1.grid(True, alpha=0.2, color='#333')
-        ax1.set_title(f'{symbol.replace(":USDT", "")} - 1H (24 candles)', fontsize=12, fontweight='bold', color='#fff', pad=10)
-        ax1.tick_params(colors='#999', labelsize=8)
-        ax1.set_xlim(-0.5, len(df_1h)-0.5)
-        
-        # 日K线
-        for i in range(len(df_daily)):
-            o = df_daily.iloc[i]['open']
-            h = df_daily.iloc[i]['high']
-            l = df_daily.iloc[i]['low']
-            c = df_daily.iloc[i]['close']
-            color = '#00a854' if c >= o else '#eb3c3c'
-            ax2.plot([i, i], [l, h], color=color, linewidth=1.5)
-            width = 0.5
-            if c >= o:
-                ax2.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
-            else:
-                ax2.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
-        ax2.set_facecolor('#1a1a1a')
-        ax2.grid(True, alpha=0.2, color='#333')
-        ax2.set_title('Daily (from 4H, 10 candles ~10 days)', fontsize=11, color='#fff', pad=8)
-        ax2.tick_params(colors='#999', labelsize=8)
-        ax2.set_xlim(-0.5, len(df_daily)-0.5)
-        
-        # 4小时K线
-        for i in range(len(df_4h_6)):
-            o = df_4h_6.iloc[i]['open']
-            h = df_4h_6.iloc[i]['high']
-            l = df_4h_6.iloc[i]['low']
-            c = df_4h_6.iloc[i]['close']
-            color = '#00a854' if c >= o else '#eb3c3c'
-            ax3.plot([i, i], [l, h], color=color, linewidth=2)
-            width = 0.5
-            if c >= o:
-                ax3.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
-            else:
-                ax3.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
-        ax3.set_facecolor('#1a1a1a')
-        ax3.grid(True, alpha=0.2, color='#333')
-        ax3.set_title('4H (6 candles ~1 day)', fontsize=11, color='#fff', pad=8)
-        ax3.tick_params(colors='#999', labelsize=8)
-        ax3.set_xlim(-0.5, len(df_4h_6)-0.5)
-        
-        plt.tight_layout()
-        
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=130, facecolor='#1a1a1a')
-        buf.seek(0)
-        plt.close()
-        
-        # 保存缓存
-        with open(cache_file, 'wb') as f:
-            f.write(buf.getvalue())
-        
-        return send_file(buf, mimetype='image/png')
-        
+        days = int(request.args.get('days', 7))
+        signals = Database.get_latest_signals(strategy, limit=100)
+        return jsonify({'code': 0, 'data': signals, 'count': len(signals)})
     except Exception as e:
-        return f"Error: {str(e)}", 500
+        logger.error(f"获取信号失败: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
 
 @app.route('/chart/<symbol>')
 def chart(symbol):
-    """生成K线图表 - 蜡烛图+黑色背景，三个周期"""
-    symbol = symbol.replace('_', '/')
-    if not symbol.endswith(':USDT'):
-        symbol = symbol + '/USDT:USDT'
-    
     try:
-        # 获取K线数据
+        interval = request.args.get('interval', '1h')
+        limit = int(request.args.get('limit', 100))
+        
+        import ccxt
         exchange = ccxt.binance({
             'enableRateLimit': True,
             'options': {'defaultType': 'future'}
         })
         
-        # 获取K线
-        ohlcv_1h = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=24)   # 24小时
-        ohlcv_4h = exchange.fetch_ohlcv(symbol, timeframe='4h', limit=40)  # 40个4小时K线
+        symbol_formatted = symbol.replace('USDT', '').replace('/USDT', '').replace(':USDT', '')
+        full_symbol = f"{symbol_formatted}/USDT:USDT"
         
-        if not ohlcv_1h:
+        ohlcv = exchange.fetch_ohlcv(full_symbol, timeframe=interval, limit=limit)
+        
+        if not ohlcv:
+            return jsonify({'code': 1, 'msg': 'No data'})
+        
+        klines = []
+        for row in ohlcv:
+            klines.append({
+                'timestamp': row[0],
+                'open': row[1],
+                'high': row[2],
+                'low': row[3],
+                'close': row[4],
+                'volume': row[5]
+            })
+        
+        return jsonify(klines)
+    except Exception as e:
+        logger.error(f"获取K线数据失败: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
+
+@app.route('/triple-chart/<symbol>')
+def triple_chart(symbol):
+    try:
+        chart_data = ChartGenerator.generate_triple_chart(symbol)
+        if chart_data is None:
             return "No data", 404
         
-        df_1h = pd.DataFrame(ohlcv_1h, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        df_4h = pd.DataFrame(ohlcv_4h, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
-        
-        # 4小时K线聚合成日K线 (每4根聚合为1根日K)
-        df_4h_sorted = df_4h.sort_values('timestamp').reset_index(drop=True)
-        daily_data = []
-        for i in range(0, len(df_4h_sorted) - 3, 4):
-            group = df_4h_sorted.iloc[i:i+4]
-            daily_data.append({
-                'open': group.iloc[0]['open'],
-                'high': group['high'].max(),
-                'low': group['low'].min(),
-                'close': group.iloc[-1]['close'],
-                'volume': group['volume'].sum()
-            })
-        df_daily = pd.DataFrame(daily_data).tail(10)  # 取最后10根日K
-        
-        # 取最后6根4h K线
-        df_4h_6 = df_4h.tail(6)
-        
-        # 黑色背景
-        plt.style.use('dark_background')
-        fig = plt.figure(figsize=(18, 16))
-        
-        # 创建网格
-        gs = fig.add_gridspec(3, 1, height_ratios=[1.2, 1, 0.8], hspace=0.25)
-        
-        ax1 = fig.add_subplot(gs[0])  # 1小时K线
-        ax2 = fig.add_subplot(gs[1])  # 日K线(聚合)
-        ax3 = fig.add_subplot(gs[2])  # 4小时K线(6个)
-        
-        fig.patch.set_facecolor('#1a1a1a')
-        
-        # 1小时K线 (24个)
-        for i in range(len(df_1h)):
-            o = df_1h.iloc[i]['open']
-            h = df_1h.iloc[i]['high']
-            l = df_1h.iloc[i]['low']
-            c = df_1h.iloc[i]['close']
-            color = '#00a854' if c >= o else '#eb3c3c'
-            ax1.plot([i, i], [l, h], color=color, linewidth=1)
-            width = 0.6
-            if c >= o:
-                ax1.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
-            else:
-                ax1.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
-        
-        ax1.set_facecolor('#1a1a1a')
-        ax1.grid(True, alpha=0.2, color='#333')
-        ax1.set_title(f'{symbol.replace(":USDT", "")} - 1H (24 candles)', fontsize=12, fontweight='bold', color='#fff', pad=10)
-        ax1.tick_params(colors='#999', labelsize=8)
-        ax1.set_xlim(-0.5, len(df_1h)-0.5)
-        
-        # 日K线 (10个，由4H聚合)
-        for i in range(len(df_daily)):
-            o = df_daily.iloc[i]['open']
-            h = df_daily.iloc[i]['high']
-            l = df_daily.iloc[i]['low']
-            c = df_daily.iloc[i]['close']
-            color = '#00a854' if c >= o else '#eb3c3c'
-            ax2.plot([i, i], [l, h], color=color, linewidth=1.5)
-            width = 0.5
-            if c >= o:
-                ax2.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
-            else:
-                ax2.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
-        
-        ax2.set_facecolor('#1a1a1a')
-        ax2.grid(True, alpha=0.2, color='#333')
-        ax2.set_title('Daily (from 4H, 10 candles ~10 days)', fontsize=11, color='#fff', pad=8)
-        ax2.tick_params(colors='#999', labelsize=8)
-        ax2.set_xlim(-0.5, len(df_daily)-0.5)
-        
-        # 4小时K线 (6个)
-        for i in range(len(df_4h_6)):
-            o = df_4h_6.iloc[i]['open']
-            h = df_4h_6.iloc[i]['high']
-            l = df_4h_6.iloc[i]['low']
-            c = df_4h_6.iloc[i]['close']
-            color = '#00a854' if c >= o else '#eb3c3c'
-            ax3.plot([i, i], [l, h], color=color, linewidth=2)
-            width = 0.5
-            if c >= o:
-                ax3.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
-            else:
-                ax3.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
-        
-        ax3.set_facecolor('#1a1a1a')
-        ax3.grid(True, alpha=0.2, color='#333')
-        ax3.set_title('4H (6 candles ~1 day)', fontsize=11, color='#fff', pad=8)
-        ax3.tick_params(colors='#999', labelsize=8)
-        ax3.set_xlim(-0.5, len(df_4h_6)-0.5)
-        
-        plt.tight_layout()
-        
-        # 转为图片
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=130, facecolor='#1a1a1a')
+        buf = io.BytesIO(chart_data)
         buf.seek(0)
-        plt.close()
-        
         return send_file(buf, mimetype='image/png')
-        
     except Exception as e:
+        logger.error(f"生成三合一图表失败: {e}")
         return f"Error: {str(e)}", 500
 
+
+@app.route('/preload/<symbol>')
+def preload(symbol):
+    return chart(symbol)
+
+
+@app.route('/api/account')
+def api_account():
+    from utils.binance_account import BinanceAccount
+    
+    try:
+        BinanceAccount.clear_cache()
+        info = BinanceAccount.get_account_info()
+        return jsonify({'code': 0, 'data': info})
+    except Exception as e:
+        logger.error(f"获取账户信息失败: {e}")
+        return jsonify({'code': -1, 'msg': str(e)})
+
+
+@socketio.on('connect', namespace='/realtime')
+def handle_connect():
+    logger.info(f"客户端连接: {request.sid}")
+    emit('connected', {'status': 'ok'})
+
+
+@socketio.on('disconnect', namespace='/realtime')
+def handle_disconnect():
+    logger.info(f"客户端断开: {request.sid}")
+
+
+@socketio.on('subscribe_positions', namespace='/realtime')
+def handle_subscribe_positions(data):
+    symbols = data.get('symbols', [])
+    if symbols:
+        ws_manager.update_subscriptions(symbols)
+        logger.info(f"订阅持仓币种: {symbols}")
+        emit('subscribed', {'symbols': symbols, 'count': len(symbols)})
+
+
+@socketio.on('unsubscribe_all', namespace='/realtime')
+def handle_unsubscribe_all():
+    ws_manager.subscriptions.clear()
+    logger.info("取消所有订阅")
+    emit('unsubscribed', {'status': 'ok'})
+
+
+@app.route('/api/realtime/status')
+def realtime_status():
+    return jsonify({
+        'code': 0,
+        'data': {
+            'subscriptions': list(ws_manager.subscriptions),
+            'count': len(ws_manager.subscriptions),
+            'running': ws_manager.running
+        }
+    })
+
+
+@app.route('/api/history/six-hour')
+def api_history_six_hour():
+    from utils.history_manager import HistoryManager
+    
+    try:
+        days = int(request.args.get('days', 7))
+        symbol = request.args.get('symbol', None)
+        
+        history = HistoryManager.get_history(days=days, symbol=symbol)
+        stats = HistoryManager.get_stats()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'history': history,
+                'stats': stats
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取历史记录失败: {e}")
+        return jsonify({'code': -1, 'msg': str(e)})
+
+
+@app.route('/api/surge/records')
+def api_surge_records():
+    from utils.surge_manager import SurgeManager
+    
+    try:
+        days = int(request.args.get('days', 1))
+        symbol = request.args.get('symbol', None)
+        
+        records = SurgeManager.get_records(days=days, symbol=symbol)
+        stats = SurgeManager.get_today_stats()
+        
+        return jsonify({
+            'code': 0,
+            'data': {
+                'records': records,
+                'stats': stats
+            }
+        })
+    except Exception as e:
+        logger.error(f"获取暴涨记录失败: {e}")
+        return jsonify({'code': -1, 'msg': str(e)})
+
+
+@app.route('/api/surge/image/<symbol>/<timestamp>')
+def api_surge_image(symbol, timestamp):
+    from utils.surge_manager import SurgeManager
+    
+    try:
+        image_data = SurgeManager.get_image(symbol, timestamp)
+        
+        if image_data:
+            return send_file(
+                io.BytesIO(image_data),
+                mimetype='image/png'
+            )
+        else:
+            return "Image not found", 404
+    except Exception as e:
+        logger.error(f"获取暴涨图片失败: {e}")
+        return f"Error: {str(e)}", 500
+
+
+
+is_scanning = False
+scan_lock = threading.Lock()
+
+@app.route('/api/strategy1/scan', methods=['POST'])
+def api_strategy1_scan():
+    global is_scanning
+    with scan_lock:
+        if is_scanning:
+            return jsonify({'code': 1, 'msg': '扫描正在进行中，请稍后再试'})
+        is_scanning = True
+        
+    strategy_id = request.args.get('strategy', 'strategy1').strip()
+    
+    def run_scan():
+        global is_scanning
+        try:
+            if strategy_id == 'strategy1_pro':
+                from strategies.strategy1_pro import Strategy1Pro
+                strategy = Strategy1Pro()
+                target_report = str(config.OUTPUT_DIR / 'strategy1_pro.json')
+                target_signals = '/var/www/all_signals_pro.json'
+                fallback_signals = str(config.DATA_DIR / 'all_signals_pro.json')
+            elif strategy_id == 'arc_bottom':
+                from strategies.arc_bottom import ArcBottomStrategy
+                strategy = ArcBottomStrategy()
+                target_report = str(config.OUTPUT_DIR / 'arc_bottom.json')
+                target_signals = '/var/www/all_signals_arc.json'
+                fallback_signals = str(config.DATA_DIR / 'all_signals_arc.json')
+            else:
+                from strategies.strategy1 import Strategy1
+                strategy = Strategy1()
+                target_report = str(config.OUTPUT_DIR / 'strategy1.json')
+                target_signals = '/var/www/all_signals.json'
+                fallback_signals = str(config.DATA_DIR / 'all_signals.json')
+                
+            report = strategy.run()
+            
+            # 手动更新前端需要的文件
+            if report:
+                report_dict = report.to_dict()
+                with open(target_report, 'w', encoding='utf-8') as f:
+                    json.dump(report_dict, f, ensure_ascii=False, indent=2)
+                
+                signals = [item.to_dict() for item in report.items]
+                try:
+                    with open(target_signals, 'w', encoding='utf-8') as f:
+                        json.dump(signals, f, ensure_ascii=False, indent=2)
+                except Exception:
+                    with open(fallback_signals, 'w', encoding='utf-8') as f:
+                        json.dump(signals, f, ensure_ascii=False, indent=2)
+                        
+        except Exception as e:
+            logger.error(f"扫描执行失败: {e}")
+        finally:
+            with scan_lock:
+                is_scanning = False
+
+    thread = threading.Thread(target=run_scan)
+    thread.start()
+    return jsonify({'code': 0, 'msg': '触发策略实时扫描（后台运行）'})
+
+@app.route('/api/strategy1/debug')
+def api_strategy1_debug():
+    symbol = request.args.get('symbol', '').strip().upper()
+    strategy_id = request.args.get('strategy', 'strategy1').strip()
+    
+    if not symbol:
+        return jsonify({'code': 1, 'msg': '缺少 symbol 参数'})
+    if not symbol.endswith('USDT'):
+        symbol += 'USDT'
+        
+    try:
+        report_data = get_latest_report(strategy_id)
+        if not report_data:
+            return jsonify({'code': 1, 'msg': f'没有找到 {strategy_id} 报告数据'})
+            
+        report_source = f'api/report/{strategy_id}'
+        report_time = report_data.get('timestamp', '')
+        
+        all_symbols_bars = report_data.get('metadata', {}).get('all_symbols_bars', [])
+        target = None
+        for item in all_symbols_bars:
+            if item['symbol'] == symbol:
+                target = item
+                break
+                
+        if not target:
+            return jsonify({'code': 1, 'msg': f'在最新报告({report_time})中未找到 {symbol} 的扫描数据，可能是日线不满足条件（前两日非阳线或涨幅过大）。'})
+            
+        bars = target.get('bars', [])
+        details = []
+        consecutive = 0
+        eliminated_at = None
+        reason = ""
+        
+        is_pro = (strategy_id == 'strategy1_pro')
+        
+        for idx, bar in enumerate(bars, 1):
+            t = bar['timestamp']
+            o = float(bar['open'])
+            c = float(bar['close'])
+            h = float(bar['high'])
+            l = float(bar['low'])
+            v = float(bar['volume'])
+            
+            time_str = t[5:16]
+            
+            if c < o:
+                eliminated_at = time_str
+                reason = f"{time_str} 为阴线 (连涨在倒数第{idx}个小时中断)"
+                details.append({
+                    'step': f"往前推第{idx}小时",
+                    'time': time_str,
+                    'status': '淘汰',
+                    'desc': reason
+                })
+                break
+                
+            if is_pro:
+                body = c - o
+                total = h - l
+                body_ratio = body / total if total > 0 else 0
+                if body_ratio < 0.4:
+                    eliminated_at = time_str
+                    reason = f"{time_str} 实体比例不足 ({body_ratio:.1%} < 40%)"
+                    details.append({'step': f"往前推第{idx}小时", 'time': time_str, 'status': '淘汰', 'desc': reason})
+                    break
+                    
+                gain = (c - o) / o
+                if gain > 0.08:
+                    eliminated_at = time_str
+                    reason = f"{time_str} 单根涨幅过大 ({gain:.1%} > 8%)"
+                    details.append({'step': f"往前推第{idx}小时", 'time': time_str, 'status': '淘汰', 'desc': reason})
+                    break
+            
+            consecutive += 1
+            
+            if idx == 1:
+                desc = f"倒数第1根(最新)为阳线，low={l}"
+            else:
+                desc = f"往前推第{idx}小时为阳线，low={l}"
+                
+            details.append({
+                'step': f"往前推第{idx}小时",
+                'time': time_str,
+                'status': '通过',
+                'desc': desc
+            })
+            
+        is_signal = consecutive >= 1
+        max_passed = f"连续{consecutive}小时连涨" if consecutive > 0 else "0"
+        
+        summary = f"报告时间: {report_time} | 来源: {report_source}\\n"
+        summary += f"最高通过: {max_passed} | 是否成信号: {'是' if is_signal and not eliminated_at else '否'}\\n"
+        if eliminated_at:
+            summary += f"原因: {reason}"
+            
+        return jsonify({
+            'code': 0,
+            'data': {
+                'symbol': symbol,
+                'summary': summary,
+                'details': details
+            }
+        })
+        
+    except Exception as e:
+        logger.error(f"调试接口出错: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
+
 if __name__ == '__main__':
-    print(f"启动Web服务: http://{config.WEB_HOST}:{config.WEB_PORT}")
-    app.run(host=config.WEB_HOST, port=config.WEB_PORT, debug=False)
+    logger.info(f"启动Web服务: http://{config.WEB_HOST}:{config.WEB_PORT}")
+    socketio.run(app, host=config.WEB_HOST, port=5002, debug=False, allow_unsafe_werkzeug=True)

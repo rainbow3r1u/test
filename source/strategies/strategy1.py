@@ -106,8 +106,6 @@ class Strategy1(BaseStrategy):
         
         self.logger.info(f"开始扫描 {len(passed_symbols)} 个通过预筛选的币种...")
         
-        min_range = self.params.get('min_range', 0.005)
-        max_range = self.params.get('max_range', 0.025)
         min_hours = self.params.get('min_hours', 3)
         
         # 检查统计
@@ -185,10 +183,6 @@ class Strategy1(BaseStrategy):
                 close_price = row['close']
                 range_pct = (high_price - low_price) / low_price
                 is_bullish = close_price > open_price
-                
-                if range_pct < min_range or range_pct > max_range:
-                    self.logger.info(f"  {symbol} 第{i}根K线震幅{range_pct*100:.2f}% 不在范围内")
-                    break
                 
                 if not is_bullish:
                     self.logger.info(f"  {symbol} 第{i+1}根K线不是阳线")
@@ -283,12 +277,14 @@ class Strategy1(BaseStrategy):
             'check_stats': check_stats,
             'step_symbols': step_symbols,
             'all_symbols_bars': all_symbols_bars,
-            'check_time': current_hour.strftime('%Y-%m-%d %H:%M'),
-            'next_check_time': (current_hour + timedelta(hours=1, minutes=5)).strftime('%Y-%m-%d %H:%M')
+            'scan_cutoff_hour': current_hour.strftime('%Y-%m-%d %H:%M:%S'),
+            'check_time': (current_hour + pd.Timedelta(hours=1, minutes=2)).strftime('%Y-%m-%d %H:%M'),
+            'next_check_time': (now_utc.replace(minute=0, second=0, microsecond=0) + pd.Timedelta(hours=1, minutes=2)).strftime('%Y-%m-%d %H:%M')
         }
     
     def create_report(self, items: List[Dict[str, Any]], 
                       check_stats: Dict = None,
+                      scan_cutoff_hour: str = None,
                       check_time: str = None,
                       next_check_time: str = None,
                       step_symbols: Dict = None,
@@ -305,13 +301,13 @@ class Strategy1(BaseStrategy):
                 f"日线:今天+昨天均为阳线",
                 f"成交额>={self.params.get('min_volume_24h', 15_000_000)/1e6:.0f}M USDT",
                 f"连续{self.params.get('min_hours', 3)}小时+",
-                f"震幅{self.params.get('min_range', 0.005)*100:.1f}%~{self.params.get('max_range', 0.025)*100:.1f}%",
                 "最低价逐步抬高",
                 "最新一根为阳线"
             ],
             summary={
                 'total_signals': len(items),
                 'check_stats': check_stats or {},
+                'scan_cutoff_hour': scan_cutoff_hour or '',
                 'check_time': check_time or '',
                 'next_check_time': next_check_time or '',
                 'step_symbols': step_symbols or {},
@@ -338,6 +334,7 @@ class Strategy1(BaseStrategy):
         report = self.create_report(
             items,
             check_stats=scan_result.get('check_stats'),
+            scan_cutoff_hour=scan_result.get('scan_cutoff_hour'),
             check_time=scan_result.get('check_time'),
             next_check_time=scan_result.get('next_check_time'),
             step_symbols=scan_result.get('step_symbols'),

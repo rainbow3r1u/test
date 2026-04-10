@@ -3,8 +3,14 @@
 """
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).parent.parent
+PROJECT_ROOT = BASE_DIR.parent
+
+env_path = PROJECT_ROOT / '.env'
+load_dotenv(env_path)
+
 OUTPUT_DIR = BASE_DIR / 'output'
 DATA_DIR = BASE_DIR / 'data'
 STATIC_DIR = BASE_DIR / 'static'

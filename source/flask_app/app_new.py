@@ -29,6 +29,14 @@ from models import Database
 logger = get_logger('web')
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'crypto-scanner-secret-key-2024'
+
+@app.after_request
+def add_no_cache_headers(response):
+    if request.path.startswith('/api/'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+        response.headers['Pragma'] = 'no-cache'
+        response.headers['Expires'] = '0'
+    return response
 app.template_folder = str(Path(__file__).parent.parent / 'templates')
 app.static_folder = str(config.STATIC_DIR)
 

@@ -1,5 +1,16 @@
 [
   {
+    "symbol": "RAVEUSDT",
+    "start_time": "2026-04-08 17:00",
+    "end_time": "2026-04-08 22:00",
+    "hours": 6,
+    "price": 0.322,
+    "volume": 740000.0,
+    "gain": 8.44,
+    "record_time": "2026-04-09 07:03:46",
+    "date": "2026-04-09"
+  },
+  {
     "symbol": "0GUSDT",
     "start_time": "2026-04-07 21:00",
     "end_time": "2026-04-08 02:00",

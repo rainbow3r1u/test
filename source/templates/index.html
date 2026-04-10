@@ -233,6 +233,7 @@
         <option value="hrs">按连续小时数</option>
     </select>
     <span id="s1Count">共 {{s1_data|length}} 个信号</span>
+    <div id="s1Signals" style="margin-top:10px;max-height:600px;overflow-y:auto;"></div>
 </div>
 
 <div class="report-card" style="margin:14px 20px 12px;">
@@ -425,10 +426,16 @@ function loadAccountInfo() {
 }
 
 function updateCountdown() {
-    if (!nextCheckTime) return;
+    if (!nextCheckTime) {
+        console.log('nextCheckTime 为空');
+        return;
+    }
     
+    console.log('nextCheckTime:', nextCheckTime);
     var now = new Date();
-    var next = new Date(nextCheckTime.replace(/-/g, '/'));
+    console.log('now:', now.toISOString());
+    var next = new Date(nextCheckTime.replace(/-/g, '/') + ' UTC');
+    console.log('next:', next.toISOString());
     var diff = Math.max(0, next - now);
     
     var hours = Math.floor(diff / 3600000);
@@ -956,8 +963,15 @@ function applyFilters() {
     else if (sortBy === 'hrs') filtered.sort(function(a,b){return b.hrs - a.hrs});
     else filtered.sort(function(a,b){return b.vol - a.vol});
     
-    document.getElementById('s1Count').textContent = '共 ' + filtered.length + ' 个信号';
+    var countEl = document.getElementById('s1Count');
     var container = document.getElementById('s1Signals');
+    
+    if (!countEl || !container) {
+        console.log('s1Count or s1Signals elements not found');
+        return;
+    }
+    
+    countEl.textContent = '共 ' + filtered.length + ' 个信号';
     if (!filtered.length) {
         container.innerHTML = '<div class="empty">暂无符合条件的信号</div>';
         return;
@@ -994,17 +1008,21 @@ function applyFilters() {
 }
 
 function loadCheckInfo() {
+    console.log('loadCheckInfo 开始执行');
     fetch('/api/strategy1')
         .then(function(r) { return r.json(); })
         .then(function(data) {
+            console.log('strategy1 data:', data);
             if (data.code === 0 && data.data) {
                 fetch('/api/report/strategy1')
                     .then(function(r) { return r.json(); })
                     .then(function(report) {
+                        console.log('report data:', report);
                         if (report.data && report.data.summary) {
                             checkStats = report.data.summary.check_stats || {};
                             checkTime = report.data.summary.check_time || '';
                             nextCheckTime = report.data.summary.next_check_time || '';
+                            console.log('设置 nextCheckTime:', nextCheckTime);
                             stepSymbols = report.data.summary.step_symbols || {};
                             allSymbolsBars = report.data.summary.all_symbols_bars || [];
                             
@@ -1141,6 +1159,7 @@ function recalculateWithRange(minRange, maxRange, minHrs) {
 // 页面加载时获取检查信息
 loadCheckInfo();
 applyFilters();
+setInterval(loadCheckInfo, 60000);  // 每分钟刷新检查信息
 </script>
 </body>
 </html>

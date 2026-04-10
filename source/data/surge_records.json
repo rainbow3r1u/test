@@ -1,5 +1,265 @@
 [
   {
+    "symbol": "BLURUSDT",
+    "gain": 13.02,
+    "price": 0.02231,
+    "volume": 772087968.0,
+    "timestamp": "2026-04-09 03:00:00",
+    "date": "2026-04-09",
+    "hour": 3,
+    "image_path": null
+  },
+  {
+    "symbol": "AGTUSDT",
+    "gain": 12.73,
+    "price": 0.011321,
+    "volume": 261763619.0,
+    "timestamp": "2026-04-09 03:00:00",
+    "date": "2026-04-09",
+    "hour": 3,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 14.04,
+    "price": 0.02128,
+    "volume": 701241923.0,
+    "timestamp": "2026-04-09 03:00:00",
+    "date": "2026-04-09",
+    "hour": 3,
+    "image_path": null
+  },
+  {
+    "symbol": "ENJUSDT",
+    "gain": 32.39,
+    "price": 0.03466,
+    "volume": 2281959482.0,
+    "timestamp": "2026-04-09 02:00:00",
+    "date": "2026-04-09",
+    "hour": 2,
+    "image_path": null
+  },
+  {
+    "symbol": "AGTUSDT",
+    "gain": 19.33,
+    "price": 0.010049,
+    "volume": 108987781.0,
+    "timestamp": "2026-04-09 01:00:00",
+    "date": "2026-04-09",
+    "hour": 1,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 12.17,
+    "price": 0.017231,
+    "volume": 534431486.0,
+    "timestamp": "2026-04-09 00:00:00",
+    "date": "2026-04-09",
+    "hour": 0,
+    "image_path": null
+  },
+  {
+    "symbol": "INUSDT",
+    "gain": 13.25,
+    "price": 0.06556,
+    "volume": 71646820.0,
+    "timestamp": "2026-04-09 00:00:00",
+    "date": "2026-04-09",
+    "hour": 0,
+    "image_path": null
+  },
+  {
+    "symbol": "FARTCOINUSDT",
+    "gain": 11.62,
+    "price": 0.2488,
+    "volume": 376240481.0,
+    "timestamp": "2026-04-08 22:00:00",
+    "date": "2026-04-08",
+    "hour": 22,
+    "image_path": null
+  },
+  {
+    "symbol": "LABUSDT",
+    "gain": 11.71,
+    "price": 0.38394,
+    "volume": 23757177.0,
+    "timestamp": "2026-04-08 19:00:00",
+    "date": "2026-04-08",
+    "hour": 19,
+    "image_path": null
+  },
+  {
+    "symbol": "4USDT",
+    "gain": 12.1,
+    "price": 0.019263,
+    "volume": 185561882.0,
+    "timestamp": "2026-04-08 17:00:00",
+    "date": "2026-04-08",
+    "hour": 17,
+    "image_path": null
+  },
+  {
+    "symbol": "ENJUSDT",
+    "gain": 10.21,
+    "price": 0.02741,
+    "volume": 2885230358.0,
+    "timestamp": "2026-04-08 16:00:00",
+    "date": "2026-04-08",
+    "hour": 16,
+    "image_path": null
+  },
+  {
+    "symbol": "4USDT",
+    "gain": 12.45,
+    "price": 0.017193,
+    "volume": 243161279.0,
+    "timestamp": "2026-04-08 16:00:00",
+    "date": "2026-04-08",
+    "hour": 16,
+    "image_path": null
+  },
+  {
+    "symbol": "LABUSDT",
+    "gain": 19.5,
+    "price": 0.38424,
+    "volume": 43144855.0,
+    "timestamp": "2026-04-08 16:00:00",
+    "date": "2026-04-08",
+    "hour": 16,
+    "image_path": null
+  },
+  {
+    "symbol": "ENJUSDT",
+    "gain": 21.32,
+    "price": 0.02487,
+    "volume": 1423533811.0,
+    "timestamp": "2026-04-08 15:00:00",
+    "date": "2026-04-08",
+    "hour": 15,
+    "image_path": null
+  },
+  {
+    "symbol": "ATAUSDT",
+    "gain": 10.15,
+    "price": 0.00998,
+    "volume": 618496394.0,
+    "timestamp": "2026-04-08 15:00:00",
+    "date": "2026-04-08",
+    "hour": 15,
+    "image_path": null
+  },
+  {
+    "symbol": "MAGMAUSDT",
+    "gain": 22.18,
+    "price": 0.1302,
+    "volume": 37042578.0,
+    "timestamp": "2026-04-08 15:00:00",
+    "date": "2026-04-08",
+    "hour": 15,
+    "image_path": null
+  },
+  {
+    "symbol": "BULLAUSDT",
+    "gain": 12.35,
+    "price": 0.016235,
+    "volume": 1247082855.0,
+    "timestamp": "2026-04-08 14:00:00",
+    "date": "2026-04-08",
+    "hour": 14,
+    "image_path": null
+  },
+  {
+    "symbol": "BEATUSDT",
+    "gain": 11.73,
+    "price": 0.3114,
+    "volume": 18350448.0,
+    "timestamp": "2026-04-08 14:00:00",
+    "date": "2026-04-08",
+    "hour": 14,
+    "image_path": null
+  },
+  {
+    "symbol": "TRADOORUSDT",
+    "gain": 23.07,
+    "price": 3.996,
+    "volume": 2457449.0,
+    "timestamp": "2026-04-08 13:00:00",
+    "date": "2026-04-08",
+    "hour": 13,
+    "image_path": null
+  },
+  {
+    "symbol": "4USDT",
+    "gain": 11.25,
+    "price": 0.016864,
+    "volume": 738378464.0,
+    "timestamp": "2026-04-08 12:00:00",
+    "date": "2026-04-08",
+    "hour": 12,
+    "image_path": null
+  },
+  {
+    "symbol": "龙虾USDT",
+    "gain": 10.1,
+    "price": 0.008783,
+    "volume": 326803716.0,
+    "timestamp": "2026-04-08 12:00:00",
+    "date": "2026-04-08",
+    "hour": 12,
+    "image_path": null
+  },
+  {
+    "symbol": "DRIFTUSDT",
+    "gain": 11.38,
+    "price": 0.04219,
+    "volume": 241137026.0,
+    "timestamp": "2026-04-08 08:00:00",
+    "date": "2026-04-08",
+    "hour": 8,
+    "image_path": null
+  },
+  {
+    "symbol": "币安人生USDT",
+    "gain": 12.17,
+    "price": 0.09511,
+    "volume": 214413337.0,
+    "timestamp": "2026-04-08 08:00:00",
+    "date": "2026-04-08",
+    "hour": 8,
+    "image_path": null
+  },
+  {
+    "symbol": "DRIFTUSDT",
+    "gain": 18.56,
+    "price": 0.03782,
+    "volume": 196528826.0,
+    "timestamp": "2026-04-08 07:00:00",
+    "date": "2026-04-08",
+    "hour": 7,
+    "image_path": null
+  },
+  {
+    "symbol": "SOLVUSDT",
+    "gain": 10.72,
+    "price": 0.004784,
+    "volume": 1529308164.0,
+    "timestamp": "2026-04-08 07:00:00",
+    "date": "2026-04-08",
+    "hour": 7,
+    "image_path": null
+  },
+  {
+    "symbol": "EDUUSDT",
+    "gain": 18.91,
+    "price": 0.05728,
+    "volume": 88032031.0,
+    "timestamp": "2026-04-08 04:00:00",
+    "date": "2026-04-08",
+    "hour": 4,
+    "image_path": null
+  },
+  {
     "symbol": "PUFFERUSDT",
     "gain": 12.34,
     "price": 0.03132,

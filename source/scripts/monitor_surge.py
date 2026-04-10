@@ -27,7 +27,10 @@ def check_surge():
         logger.info("获取市场数据...")
         markets = exchange.load_markets()
         
-        symbols = [s for s in markets.keys() if ':USDT' in s and not s.startswith('1000')]
+        symbols = [
+            m['symbol'] for m in markets.values()
+            if m.get('swap') and m.get('quote') == 'USDT' and m.get('active')
+        ]
         
         logger.info(f"检查 {len(symbols)} 个币种...")
         

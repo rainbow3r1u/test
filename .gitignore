@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 
-# Environment
+# Environment - IMPORTANT: never commit .env
 .env
 *.local.py
 venv/
@@ -48,12 +48,23 @@ Thumbs.db
 *.db
 *.sqlite3
 
-# Trae documents
+# Data files
+data/
+source/data/
+
+# Chart cache
+static/charts/*.png
+
+# Trae / CodeBuddy
 .trae/
+.codebuddy/
 
 # Jupyter
 .ipynb_checkpoints/
 
 # Local config
 configs/config.local.py
-source/configs/config.local.py
+
+# Chart caches
+static/charts/*.png
+source/static/charts/*.png

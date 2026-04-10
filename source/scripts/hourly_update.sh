@@ -23,15 +23,21 @@ python3 main.py all >> $LOG_FILE 2>&1
 python3 << 'EOF' >> $LOG_FILE 2>&1
 import json
 import glob
+import shutil
 from utils.chart_generator import ChartGenerator
 
-# 更新strategy1
+# 更新strategy1 - 同时更新完整报告和信号列表
 files = glob.glob('output/strategy1_*.json')
 if files:
     latest = max(files)
     with open(latest, 'r') as f:
         data = json.load(f)
     
+    # 复制完整报告到 /var/www/strategy1.json
+    shutil.copy(latest, '/var/www/strategy1.json')
+    print(f'更新strategy1完整报告: {latest}')
+    
+    # 提取信号列表到 all_signals.json
     items = data.get('items', [])
     by_symbol = {}
     for item in items:
