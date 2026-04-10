@@ -18,6 +18,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from flask import Flask, render_template, jsonify, Response, send_file, request
 from flask_socketio import SocketIO, emit
+from flask_compress import Compress
 
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
@@ -30,6 +31,7 @@ from core.database import Database
 logger = get_logger('web')
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'crypto-scanner-secret-key-2024'
+Compress(app)
 
 @app.after_request
 def add_no_cache_headers(response):
@@ -47,57 +49,49 @@ from utils.websocket_manager import ws_manager
 ws_manager.set_socketio(socketio)
 
 
+# 简单的内存缓存机制，避免频繁读取巨型JSON
+_report_cache = {}
+_report_mtime = {}
+
 def get_latest_report(strategy_name: str) -> Dict[str, Any]:
-    pattern = str(config.OUTPUT_DIR / f'{strategy_name}_*.json')
-    files = glob.glob(pattern)
-    if not files:
-        return None
-    latest = max(files, key=os.path.getmtime)
-    with open(latest, 'r', encoding='utf-8') as f:
-        return json.load(f)
+    # 优先查找通用名称的最新报告
+    target_file = str(config.OUTPUT_DIR / f'{strategy_name}.json')
+    if not os.path.exists(target_file):
+        pattern = str(config.OUTPUT_DIR / f'{strategy_name}_*.json')
+        files = glob.glob(pattern)
+        if not files:
+            return None
+        target_file = max(files, key=os.path.getmtime)
+        
+    mtime = os.path.getmtime(target_file)
+    if strategy_name in _report_cache and _report_mtime.get(strategy_name) == mtime:
+        return _report_cache[strategy_name]
+        
+    with open(target_file, 'r', encoding='utf-8') as f:
+        data = json.load(f)
+        _report_cache[strategy_name] = data
+        _report_mtime[strategy_name] = mtime
+        return data
 
 
 def get_all_reports() -> List[Dict[str, Any]]:
-    pattern = str(config.OUTPUT_DIR / '*.json')
-    files = glob.glob(pattern)
-    
-    latest_by_strategy = {}
-    for f in files:
-        try:
-            with open(f, 'r', encoding='utf-8') as fp:
-                data = json.load(fp)
-                name = data.get('strategy_name', os.path.basename(f))
-                timestamp = data.get('timestamp', '')
-                
-                try:
-                    ts = datetime.strptime(timestamp, '%Y-%m-%d %H:%M:%S')
-                except:
-                    ts = datetime.min
-                
-                if name not in latest_by_strategy:
-                    latest_by_strategy[name] = {
-                        'name': name,
-                        'title': data.get('title', '未命名'),
-                        'timestamp': timestamp,
-                        'ts': ts,
-                        'filename': os.path.basename(f),
-                        'data': data
-                    }
-                elif ts > latest_by_strategy[name]['ts']:
-                    latest_by_strategy[name] = {
-                        'name': name,
-                        'title': data.get('title', '未命名'),
-                        'timestamp': timestamp,
-                        'ts': ts,
-                        'filename': os.path.basename(f),
-                        'data': data
-                    }
-        except:
-            pass
-    
-    reports = list(latest_by_strategy.values())
-    reports.sort(key=lambda x: x.get('ts', datetime.min), reverse=True)
-    return reports
+    # 复用 get_latest_report 的缓存，避免读取和遍历所有历史文件
+    reports = []
+    strategies = ['strategy1', 'strategy1_pro', 'arc_bottom']
+    for st in strategies:
+        data = get_latest_report(st)
+        if data:
+            reports.append({
+                'name': data.get('strategy_name', st),
+                'title': data.get('title', '未命名'),
+                'timestamp': data.get('timestamp', ''),
+                'ts': datetime.strptime(data.get('timestamp', '2000-01-01 00:00:00'), '%Y-%m-%d %H:%M:%S') if data.get('timestamp') else datetime.min,
+                'summary': data.get('summary', {}),
+                'data': data
+            })
+            
+    reports.sort(key=lambda x: x['ts'], reverse=True)
+    return [{'name': r['name'], 'title': r['title'], 'timestamp': r['timestamp'], 'summary': r['summary'], 'data': r['data']} for r in reports]
 
 
 @app.route('/')
@@ -160,6 +154,8 @@ def index():
         try:
             with open(s1_file, 'r', encoding='utf-8') as f:
                 s1_data = json.load(f)
+                # 仅保留所需精简字段，减轻HTML负载
+                s1_data = [{'symbol': item.get('symbol')} for item in s1_data]
         except:
             pass
     
