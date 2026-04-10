@@ -12,6 +12,7 @@ import threading
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
+import pandas as pd
 
 import matplotlib
 matplotlib.use('Agg')
@@ -278,7 +279,20 @@ def chart(symbol):
 @app.route('/triple-chart/<symbol>')
 def triple_chart(symbol):
     try:
-        chart_data = ChartGenerator.generate_triple_chart(symbol)
+        is_live = request.args.get('live', '0') == '1'
+        
+        if is_live:
+            chart_data = ChartGenerator.generate_triple_chart_live(symbol)
+        else:
+            cutoff_str = request.args.get('cutoff')
+            cutoff = None
+            if cutoff_str:
+                try:
+                    cutoff = pd.to_datetime(cutoff_str)
+                except Exception:
+                    pass
+            chart_data = ChartGenerator.generate_triple_chart_from_cos(symbol, cutoff=cutoff)
+            
         if chart_data is None:
             return "No data", 404
         
