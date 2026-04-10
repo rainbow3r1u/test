@@ -429,30 +429,31 @@ def api_strategy1_scan():
         is_scanning = True
         
     strategy_id = request.args.get('strategy', 'strategy1').strip()
+    custom_params = request.get_json(silent=True) or {}
     
     def run_scan():
         global is_scanning
         try:
             if strategy_id == 'strategy1_pro':
                 from strategies.strategy1_pro import Strategy1Pro
-                strategy = Strategy1Pro()
+                strategy = Strategy1Pro(**custom_params)
                 target_report = str(config.OUTPUT_DIR / 'strategy1_pro.json')
                 target_signals = '/var/www/all_signals_pro.json'
                 fallback_signals = str(config.DATA_DIR / 'all_signals_pro.json')
             elif strategy_id == 'arc_bottom':
                 from strategies.arc_bottom import ArcBottomStrategy
-                strategy = ArcBottomStrategy()
+                strategy = ArcBottomStrategy(**custom_params)
                 target_report = str(config.OUTPUT_DIR / 'arc_bottom.json')
                 target_signals = '/var/www/all_signals_arc.json'
                 fallback_signals = str(config.DATA_DIR / 'all_signals_arc.json')
             else:
                 from strategies.strategy1 import Strategy1
-                strategy = Strategy1()
+                strategy = Strategy1(**custom_params)
                 target_report = str(config.OUTPUT_DIR / 'strategy1.json')
                 target_signals = '/var/www/all_signals.json'
                 fallback_signals = str(config.DATA_DIR / 'all_signals.json')
                 
-            report = strategy.run()
+            report = strategy.run(generate_charts=False)
             
             # 手动更新前端需要的文件
             if report:
@@ -477,6 +478,11 @@ def api_strategy1_scan():
     thread = threading.Thread(target=run_scan)
     thread.start()
     return jsonify({'code': 0, 'msg': '触发策略实时扫描（后台运行）'})
+
+@app.route('/api/status')
+def api_status():
+    global is_scanning
+    return jsonify({'code': 0, 'data': {'is_scanning': is_scanning}})
 
 @app.route('/api/strategy1/debug')
 def api_strategy1_debug():
@@ -617,10 +623,24 @@ def api_arc_bottom_debug():
         df = pd.DataFrame(bars)
         df['timestamp'] = pd.to_datetime(df['timestamp'])
         
-        PARAMS = report_data.get('summary', {}).get('params', {
-            'lookback_hours': 120, 'min_drop_pct': 0.01, 'max_drop_pct': 0.10,
-            'left_max_bulls': 1, 'box_max_amp': 0.05, 'box_min_bars': 3, 'right_bull_bars': 2
-        })
+        def get_param(name, default, type_func):
+            val = request.args.get(name)
+            if val is not None and val != '': 
+                try:
+                    return type_func(val)
+                except ValueError:
+                    pass
+            return report_data.get('summary', {}).get('params', {}).get(name, default)
+            
+        PARAMS = {
+            'lookback_hours': 120,
+            'min_drop_pct': get_param('min_drop_pct', 0.01, float),
+            'max_drop_pct': get_param('max_drop_pct', 0.10, float),
+            'left_max_bulls': get_param('left_max_bulls', 1, int),
+            'box_max_amp': get_param('box_max_amp', 0.05, float),
+            'box_min_bars': get_param('box_min_bars', 3, int),
+            'right_bull_bars': get_param('right_bull_bars', 2, int)
+        }
         
         recent = df.iloc[-PARAMS['lookback_hours']:].reset_index(drop=True)
         n = len(recent)

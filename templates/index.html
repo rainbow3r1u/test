@@ -266,8 +266,20 @@
     
     <div class="summary-grid" id="checkStatsGrid" style="display:none;"></div>
     
+    <div id="arcParams" style="margin-top:10px; padding:12px; background:#161b22; border:1px solid #30363d; border-radius:8px;">
+        <div style="font-size:13px;color:#8b949e;margin-bottom:10px;font-weight:bold;">🛠️ 圆弧底形态参数设置</div>
+        <div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:12px;color:#c9d1d9;">
+            <label>最小跌幅%: <input type="number" id="p_min_drop" value="1" step="0.1" style="width:50px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px;border-radius:4px;"></label>
+            <label>最大跌幅%: <input type="number" id="p_max_drop" value="10" step="0.1" style="width:50px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px;border-radius:4px;"></label>
+            <label>左侧容许反抽阳线: <input type="number" id="p_left_bulls" value="1" style="width:40px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px;border-radius:4px;"></label>
+            <label>底部箱体最大振幅%: <input type="number" id="p_box_amp" value="5" step="0.1" style="width:50px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px;border-radius:4px;"></label>
+            <label>底部箱体最少耗时(h): <input type="number" id="p_box_bars" value="3" style="width:40px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px;border-radius:4px;"></label>
+            <label>右侧突破连阳数: <input type="number" id="p_right_bars" value="2" style="width:40px;background:#0d1117;border:1px solid #30363d;color:#e6edf3;padding:4px;border-radius:4px;"></label>
+        </div>
+    </div>
+
     <div class="filter-bar" style="margin-top:10px;margin-bottom:10px;">
-        <button class="realtime-btn" style="padding:6px 14px;font-size:13px;" onclick="triggerScan()">触发扫描</button>
+        <button class="realtime-btn" style="padding:6px 14px;font-size:13px;" onclick="triggerScan()">基于以上参数触发扫描</button>
     </div>
     
     <span id="s1Count">共 {{s1_data|length}} 个信号</span>
@@ -1109,9 +1121,26 @@ function loadCheckInfo() {
                             document.getElementById('nextCheckTime').textContent = nextCheckTime || '-';
                             document.getElementById('updateTime').textContent = report.data.timestamp || '-';
                             
-                            updateCheckStats();
-                            updateCountdown();
-                            applyFilters();
+                            if (currentView === 'arc_bottom' && report.data.summary.params) {
+                                var p = report.data.summary.params;
+                                if (document.getElementById('p_min_drop')) document.getElementById('p_min_drop').value = (p.min_drop_pct * 100).toFixed(1);
+                                if (document.getElementById('p_max_drop')) document.getElementById('p_max_drop').value = (p.max_drop_pct * 100).toFixed(1);
+                                if (document.getElementById('p_left_bulls')) document.getElementById('p_left_bulls').value = p.left_max_bulls;
+                                if (document.getElementById('p_box_amp')) document.getElementById('p_box_amp').value = (p.box_max_amp * 100).toFixed(1);
+                                if (document.getElementById('p_box_bars')) document.getElementById('p_box_bars').value = p.box_min_bars;
+                                if (document.getElementById('p_right_bars')) document.getElementById('p_right_bars').value = p.right_bull_bars;
+                            }
+                            
+                            if (currentView === 'arc_bottom') {
+                                document.getElementById('s1Count').textContent = '共 ' + allSignals.length + ' 个信号';
+                                 renderArcBottom(document.getElementById('stepSymbolsContainer'));
+                                 var grid = document.getElementById('checkStatsGrid');
+                                 if (grid) grid.innerHTML = '';
+                             } else {
+                                updateCheckStats();
+                                updateCountdown();
+                                applyFilters();
+                            }
                         } else {
                             // 没有step数据，显示扫描按钮
                             var grid = document.getElementById('checkStatsGrid');
@@ -1135,18 +1164,58 @@ function loadCheckInfo() {
 function triggerScan() {
     var grid = document.getElementById('checkStatsGrid');
     if (grid) {
+        grid.style.display = 'grid';
         grid.innerHTML = '<div class="summary-item" style="grid-column:1/-1;text-align:center;color:#ffa657;">扫描中，请稍候...</div>';
     }
     var strategyId = currentView === 'strategy1_pro' ? 'strategy1_pro' : (currentView === 'arc_bottom' ? 'arc_bottom' : 'strategy1');
-    fetch('/api/strategy1/scan?strategy=' + strategyId, {method: 'POST'})
+    var fetchOpts = { method: 'POST' };
+    
+    if (currentView === 'arc_bottom') {
+        fetchOpts.headers = { 'Content-Type': 'application/json' };
+        fetchOpts.body = JSON.stringify({
+            min_drop_pct: (parseFloat(document.getElementById('p_min_drop').value) || 1) / 100,
+            max_drop_pct: (parseFloat(document.getElementById('p_max_drop').value) || 10) / 100,
+            left_max_bulls: parseInt(document.getElementById('p_left_bulls').value) || 1,
+            box_max_amp: (parseFloat(document.getElementById('p_box_amp').value) || 5) / 100,
+            box_min_bars: parseInt(document.getElementById('p_box_bars').value) || 3,
+            right_bull_bars: parseInt(document.getElementById('p_right_bars').value) || 2
+        });
+    }
+
+    fetch('/api/strategy1/scan?strategy=' + strategyId, fetchOpts)
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.code === 0) {
-                // 等10秒后刷新
-                setTimeout(function() { loadCheckInfo(); }, 10000);
+                pollScanStatus();
+            } else if (grid) {
+                grid.innerHTML = '<div class="summary-item" style="grid-column:1/-1;text-align:center;color:#f85149;">' + (data.msg || '触发失败') + '</div>';
             }
         })
-        .catch(function() {});
+        .catch(function(e) {
+            if (grid) grid.innerHTML = '<div class="summary-item" style="grid-column:1/-1;text-align:center;color:#f85149;">请求失败: ' + e + '</div>';
+        });
+}
+
+function pollScanStatus() {
+    var grid = document.getElementById('checkStatsGrid');
+    fetch('/api/status')
+        .then(function(r) { return r.json(); })
+        .then(function(res) {
+            if (res.code === 0) {
+                if (res.data.is_scanning) {
+                    if (grid) grid.innerHTML = '<div class="summary-item" style="grid-column:1/-1;text-align:center;color:#ffa657;">扫描中，请稍候...</div>';
+                    setTimeout(pollScanStatus, 2000);
+                } else {
+                    if (grid) grid.innerHTML = '<div class="summary-item" style="grid-column:1/-1;text-align:center;color:#7ee787;">扫描完成，正在加载数据...</div>';
+                    loadCheckInfo();
+                }
+            } else {
+                setTimeout(pollScanStatus, 2000);
+            }
+        })
+        .catch(function() {
+            setTimeout(pollScanStatus, 2000);
+        });
 }
 
 function debugStrategy1Symbol() {
@@ -1217,8 +1286,16 @@ function debugArcBottomSymbol() {
         result.innerHTML = '<span style="color:#f85149;">请输入symbol</span>';
         return;
     }
+    
+    var qs = `&min_drop_pct=${(parseFloat(document.getElementById('p_min_drop').value)||1)/100}` +
+             `&max_drop_pct=${(parseFloat(document.getElementById('p_max_drop').value)||10)/100}` +
+             `&left_max_bulls=${parseInt(document.getElementById('p_left_bulls').value)||1}` +
+             `&box_max_amp=${(parseFloat(document.getElementById('p_box_amp').value)||5)/100}` +
+             `&box_min_bars=${parseInt(document.getElementById('p_box_bars').value)||3}` +
+             `&right_bull_bars=${parseInt(document.getElementById('p_right_bars').value)||2}`;
+             
     result.innerHTML = '<span style="color:#ffa657;">调试中...</span>';
-    fetch('/api/arc_bottom/debug?symbol=' + encodeURIComponent(symbol))
+    fetch('/api/arc_bottom/debug?symbol=' + encodeURIComponent(symbol) + qs)
         .then(function(r) { return r.json(); })
         .then(function(res) {
             if (res.code !== 0 || !res.data) {

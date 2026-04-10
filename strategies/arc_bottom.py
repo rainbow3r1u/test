@@ -3,39 +3,34 @@ from datetime import datetime, timezone
 from .base import BaseStrategy
 
 class ArcBottomStrategy(BaseStrategy):
-    """
-    圆弧底突破策略 (容错参数化版)
-    """
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.default_params = {
+            'min_drop_pct': 0.01,
+            'max_drop_pct': 0.10,
+            'left_min_bars': 3,
+            'left_max_bulls': 1,
+            'box_max_amp': 0.05,
+            'box_min_bars': 3,
+            'right_bull_bars': 2,
+            'lookback_hours': 120,
+            'min_history': 50
+        }
+        for k, v in kwargs.items():
+            if k in self.default_params:
+                self.default_params[k] = v
+        self.params.update(self.default_params)
+
     @property
     def strategy_id(self) -> str:
         return 'arc_bottom'
-    
+
     @property
-    def strategy_name(self) -> str:
+    def strategy_name(self):
         return '圆弧底突破'
 
     def scan(self) -> dict:
-        # =========================================================================
-        # 👑 策略核心参数配置区 (你可以随时在这里修改参数进行测试)
-        # =========================================================================
-        PARAMS = {
-            # 1. 左侧下跌段
-            'min_drop_pct': 0.01,       # 最小跌幅 (1%)
-            'max_drop_pct': 0.10,       # 最大跌幅 (10%)
-            'left_min_bars': 3,         # 左侧下跌最少K线数
-            'left_max_bulls': 1,        # 左侧下跌段最多允许的阳线反抽数量
-            
-            # 2. 底部箱体盘整段
-            'box_max_amp': 0.05,        # 底部箱体最大振幅 (5%)
-            'box_min_bars': 3,          # 底部箱体最少K线数
-            
-            # 3. 右侧突破反弹段
-            'right_bull_bars': 2,       # 右侧突破需要的连续阳线数 (2小时连涨)
-            
-            # 4. 全局回溯配置
-            'lookback_hours': 48,       # 寻找形态的最大时间窗口 (最近48小时)
-            'min_history': 50           # 币种需要的最少历史K线数
-        }
+        PARAMS = self.params
         # =========================================================================
         
         items = []
@@ -163,16 +158,7 @@ class ArcBottomStrategy(BaseStrategy):
     def create_report(self, items: list, all_symbols_bars: list = None, **kwargs):
         from models.signal import StrategyReport
         utc_now = datetime.utcnow()
-        PARAMS = {
-            'lookback_hours': 120,
-            'min_history': 50,
-            'min_drop_pct': 0.01,
-            'max_drop_pct': 0.10,
-            'left_max_bulls': 1,
-            'box_max_amp': 0.05,
-            'box_min_bars': 3,
-            'right_bull_bars': 2
-        }
+        PARAMS = self.params
         return StrategyReport(
             strategy_name=self.strategy_id,
             title=self.strategy_name,
