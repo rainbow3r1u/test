@@ -50,9 +50,6 @@ class Strategy1Pro(BaseStrategy):
     def _pre_filter_symbols(self, df: pd.DataFrame, symbols: list) -> tuple:
         min_volume_24h = self.params.get('min_volume_24h', 15_000_000)
         
-        from core.chart_generator import ChartGenerator
-        import time as _time
-        
         filter_stats = {
             'total': len(symbols),
             'daily_bullish_pass': 0,
@@ -86,41 +83,9 @@ class Strategy1Pro(BaseStrategy):
         
         self.logger.info(f"COS初筛: 成交额+日线阳线候选 {len(cos_candidates)} 个")
         
-        # 第二步: 用交易所实时API验证日线阴阳(只验证候选)
-        passed_symbols = []
-        for symbol in cos_candidates:
-            try:
-                df_1d = ChartGenerator._fetch_ohlcv(symbol, '1d', 3, filter_incomplete=False)
-                if df_1d is None or len(df_1d) < 2:
-                    # API失败时保留COS判断
-                    passed_symbols.append(symbol)
-                    filter_stats['both_pass'] += 1
-                    continue
-                
-                yesterday_row = df_1d.iloc[-2]
-                today_row = df_1d.iloc[-1]
-                
-                yesterday_bullish = yesterday_row['close'] > yesterday_row['open']
-                today_bullish = today_row['close'] > today_row['open']
-            except Exception as e:
-                self.logger.warning(f"  {symbol} 获取日线失败: {e}, 保留COS判断")
-                passed_symbols.append(symbol)
-                filter_stats['both_pass'] += 1
-                continue
-            
-            if today_bullish and yesterday_bullish:
-                filter_stats['daily_bullish_pass'] += 1
-                filter_stats['volume_pass'] += 1
-                filter_stats['both_pass'] += 1
-                passed_symbols.append(symbol)
-            else:
-                self.logger.info(f"  {symbol} 交易所日线验证未通过: 今天={'阳' if today_bullish else '阴'}线, 昨天={'阳' if yesterday_bullish else '阴'}线")
-            
-            _time.sleep(0.05)
+        self.logger.info(f"日线预筛选: COS候选 {len(cos_candidates)} 个全部通过")
         
-        self.logger.info(f"日线预筛选(交易所验证): COS候选 {len(cos_candidates)} → 验证通过 {len(passed_symbols)} 个")
-        
-        return passed_symbols, filter_stats
+        return cos_candidates, filter_stats
     
     def scan(self) -> Dict[str, Any]:
         df = self.df.copy()

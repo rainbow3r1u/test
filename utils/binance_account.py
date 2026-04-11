@@ -1,11 +1,15 @@
 """
 币安账户信息获取模块
 获取合约账户余额和持仓盈亏
+支持 REST API 和 WebSocket 两种方式
 """
 import time
 import hmac
 import hashlib
 import requests
+import json
+import threading
+import websocket
 from typing import Dict, List, Optional
 import sys
 from pathlib import Path
@@ -170,3 +174,190 @@ def get_positions() -> List[Dict]:
 
 def get_account_info() -> Dict:
     return BinanceAccount.get_account_info()
+
+
+class BinanceAccountWS:
+    _instance = None
+    _ws = None
+    _thread = None
+    _running = False
+    _listen_key = None
+    _account_data = {}
+    _last_update = None
+    
+    WS_URL = "wss://fstream.binance.com/ws/"
+    REST_API = "https://fapi.binance.com"
+    
+    @classmethod
+    def get_instance(cls):
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
+    
+    @classmethod
+    def start(cls):
+        if cls._running:
+            return
+        cls._running = True
+        cls._thread = threading.Thread(target=cls._run_ws, daemon=True)
+        cls._thread.start()
+        logger.info("BinanceAccountWS 已启动")
+    
+    @classmethod
+    def stop(cls):
+        cls._running = False
+        if cls._ws:
+            cls._ws.close()
+        logger.info("BinanceAccountWS 已停止")
+    
+    @classmethod
+    def _get_listen_key(cls) -> Optional[str]:
+        url = f"{cls.REST_API}/fapi/v1/listenKey"
+        headers = {'X-MBX-APIKEY': config.BINANCE_API_KEY}
+        try:
+            resp = requests.post(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            return resp.json().get('listenKey')
+        except Exception as e:
+            logger.error(f"获取 listenKey 失败: {e}")
+            return None
+    
+    @classmethod
+    def _keepalive_listen_key(cls):
+        url = f"{cls.REST_API}/fapi/v1/listenKey"
+        headers = {'X-MBX-APIKEY': config.BINANCE_API_KEY}
+        try:
+            resp = requests.put(url, headers=headers, timeout=10)
+            resp.raise_for_status()
+            logger.debug("listenKey keepalive 成功")
+        except Exception as e:
+            logger.error(f"listenKey keepalive 失败: {e}")
+    
+    @classmethod
+    def _run_ws(cls):
+        while cls._running:
+            try:
+                listen_key = cls._get_listen_key()
+                if not listen_key:
+                    logger.error("无法获取 listenKey，30秒后重试")
+                    time.sleep(30)
+                    continue
+                
+                cls._listen_key = listen_key
+                ws_url = cls.WS_URL + listen_key
+                
+                logger.info(f"连接 WebSocket: {ws_url[:50]}...")
+                
+                cls._ws = websocket.WebSocketApp(
+                    ws_url,
+                    on_message=cls._on_message,
+                    on_error=cls._on_error,
+                    on_close=cls._on_close,
+                    on_open=cls._on_open
+                )
+                
+                cls._ws.run_forever(ping_interval=30, ping_timeout=10)
+                
+                if cls._running:
+                    logger.info("WebSocket 断开，5秒后重连...")
+                    time.sleep(5)
+                    
+            except Exception as e:
+                logger.error(f"WebSocket 运行错误: {e}")
+                if cls._running:
+                    time.sleep(5)
+    
+    @classmethod
+    def _on_open(cls, ws):
+        logger.info("WebSocket 连接成功")
+        def keepalive():
+            while cls._running and cls._ws:
+                time.sleep(1800)
+                if cls._running and cls._ws:
+                    cls._keepalive_listen_key()
+        threading.Thread(target=keepalive, daemon=True).start()
+    
+    @classmethod
+    def _on_message(cls, ws, message):
+        try:
+            data = json.loads(message)
+            event_type = data.get('e')
+            
+            if event_type == 'ACCOUNT_UPDATE':
+                cls._handle_account_update(data)
+            elif event_type == 'MARGIN_CALL':
+                logger.warning(f"保证金预警: {data}")
+                
+        except Exception as e:
+            logger.error(f"处理 WebSocket 消息失败: {e}")
+    
+    @classmethod
+    def _handle_account_update(cls, data):
+        try:
+            account = data.get('a', {})
+            balances = account.get('B', [])
+            positions = account.get('P', [])
+            
+            for bal in balances:
+                if bal.get('a') == 'USDT':
+                    cls._account_data['balance'] = {
+                        'asset': 'USDT',
+                        'balance': float(bal.get('wb', 0)),
+                        'availableBalance': float(bal.get('cw', 0)),
+                        'crossWalletBalance': float(bal.get('cw', 0)),
+                        'crossUnPnl': 0
+                    }
+                    break
+            
+            pos_list = []
+            total_pnl = 0
+            for pos in positions:
+                pos_amt = float(pos.get('pa', 0))
+                if pos_amt != 0:
+                    unrealized = float(pos.get('up', 0))
+                    total_pnl += unrealized
+                    pos_list.append({
+                        'symbol': pos.get('s', ''),
+                        'positionSide': pos.get('ps', 'BOTH'),
+                        'positionAmt': pos_amt,
+                        'entryPrice': float(pos.get('ep', 0)),
+                        'markPrice': 0,
+                        'unRealizedProfit': unrealized,
+                        'liquidationPrice': 0,
+                        'leverage': int(account.get('l', 1)),
+                        'marginType': 'cross',
+                        'positionInitialMargin': float(pos.get('iw', 0)),
+                        'direction': '多' if pos_amt > 0 else '空',
+                        'roi': 0
+                    })
+            
+            cls._account_data['positions'] = pos_list
+            cls._account_data['totalPnl'] = total_pnl
+            cls._account_data['positionCount'] = len(pos_list)
+            cls._last_update = time.time()
+            
+            logger.debug(f"账户更新: 权益={cls._account_data.get('balance', {}).get('balance', 0):.2f}, 持仓={len(pos_list)}")
+            
+        except Exception as e:
+            logger.error(f"处理账户更新失败: {e}")
+    
+    @classmethod
+    def _on_error(cls, ws, error):
+        logger.error(f"WebSocket 错误: {error}")
+    
+    @classmethod
+    def _on_close(cls, ws, close_status_code, close_msg):
+        logger.info(f"WebSocket 关闭: {close_status_code} - {close_msg}")
+    
+    @classmethod
+    def get_account_info(cls) -> Dict:
+        if cls._account_data and cls._last_update:
+            if time.time() - cls._last_update < 60:
+                return cls._account_data.copy()
+        
+        logger.warning("WebSocket 数据不可用，回退到 REST API")
+        return BinanceAccount.get_account_info()
+    
+    @classmethod
+    def is_connected(cls) -> bool:
+        return cls._running and cls._ws is not None and cls._last_update is not None

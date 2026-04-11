@@ -124,11 +124,10 @@ def index():
     name_mapping = {
         'coin_quality': 'coin_quality',
         'deepseek': 'deepseek_strategy',
-        'bollinger': 'bollinger_converge',
         'volume': 'volume_daily',
         'strategy1': 'strategy1'
     }
-    strategy_names = ['coin_quality', 'deepseek', 'bollinger', 'volume']
+    strategy_names = ['coin_quality', 'deepseek', 'volume']
     strategies = []
     for n in strategy_names:
         data = latest_by_name.get(n, {})
@@ -247,29 +246,28 @@ def chart(symbol):
         interval = request.args.get('interval', '1h')
         limit = int(request.args.get('limit', 100))
         
-        import ccxt
-        exchange = ccxt.binance({
-            'enableRateLimit': True,
-            'options': {'defaultType': 'future'}
-        })
+        df = DataLoader.get_symbol_data(symbol, use_cache=True)
+        if df is None or len(df) == 0:
+            return jsonify({'code': 1, 'msg': 'No data from COS'})
         
-        symbol_formatted = symbol.replace('USDT', '').replace('/USDT', '').replace(':USDT', '')
-        full_symbol = f"{symbol_formatted}/USDT:USDT"
+        df = df.sort_values('timestamp').tail(limit * 4)
         
-        ohlcv = exchange.fetch_ohlcv(full_symbol, timeframe=interval, limit=limit)
+        if interval == '4h':
+            df = ChartGenerator._aggregate_timeframe(df, '4h')
+        elif interval == '1d':
+            df = ChartGenerator._aggregate_timeframe(df, '1d')
         
-        if not ohlcv:
-            return jsonify({'code': 1, 'msg': 'No data'})
+        df = df.tail(limit)
         
         klines = []
-        for row in ohlcv:
+        for _, row in df.iterrows():
             klines.append({
-                'timestamp': row[0],
-                'open': row[1],
-                'high': row[2],
-                'low': row[3],
-                'close': row[4],
-                'volume': row[5]
+                'timestamp': int(row['timestamp'].timestamp() * 1000) if hasattr(row['timestamp'], 'timestamp') else int(row['timestamp']),
+                'open': float(row['open']),
+                'high': float(row['high']),
+                'low': float(row['low']),
+                'close': float(row['close']),
+                'volume': float(row['volume'])
             })
         
         return jsonify(klines)
@@ -291,7 +289,6 @@ def triple_chart(symbol):
             if cutoff_str:
                 try:
                     cutoff = pd.to_datetime(cutoff_str)
-                    logger.info(f"图表 cutoff 参数: {cutoff_str} -> {cutoff}")
                 except Exception as e:
                     logger.warning(f"解析 cutoff 失败: {cutoff_str}, {e}")
             chart_data = ChartGenerator.generate_triple_chart_from_cos(symbol, cutoff=cutoff)
@@ -314,11 +311,14 @@ def preload(symbol):
 
 @app.route('/api/account')
 def api_account():
-    from utils.binance_account import BinanceAccount
+    from utils.binance_account import BinanceAccountWS, BinanceAccount
     
     try:
-        BinanceAccount.clear_cache()
-        info = BinanceAccount.get_account_info()
+        if BinanceAccountWS.is_connected():
+            info = BinanceAccountWS.get_account_info()
+        else:
+            BinanceAccount.clear_cache()
+            info = BinanceAccount.get_account_info()
         return jsonify({'code': 0, 'data': info})
     except Exception as e:
         logger.error(f"获取账户信息失败: {e}")
@@ -761,5 +761,7 @@ def api_scanner_coins():
 
 
 if __name__ == '__main__':
+    from utils.binance_account import BinanceAccountWS
+    BinanceAccountWS.start()
     logger.info(f"启动Web服务: http://{config.WEB_HOST}:{config.WEB_PORT}")
     socketio.run(app, host=config.WEB_HOST, port=5002, debug=False, allow_unsafe_werkzeug=True)

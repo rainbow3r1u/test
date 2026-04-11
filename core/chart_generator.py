@@ -90,19 +90,27 @@ class ChartGenerator:
         bb_std = 2.0
         df_bb = cls._calculate_bollinger_bands(df, bb_period, bb_std)
 
-        # 按 timeframe 控制显示数量
         if timeframe == '1h':
             display_count = 24
         elif timeframe == '4h':
             display_count = 12
         elif timeframe == '1d':
-            display_count = 14
+            display_count = 12
         else:
             display_count = len(df)
 
-        # 只显示最后 display_count 根
         df_display = df.tail(display_count).reset_index(drop=True)
         df_bb_display = df_bb.tail(display_count).reset_index(drop=True)
+
+        ax.set_facecolor('#1a1a1a')
+        ax.grid(True, alpha=0.2, color='#333')
+        ax.set_title(title, fontsize=11, color='#fff', pad=8)
+        ax.tick_params(colors='#999', labelsize=8)
+
+        x = range(len(df_bb_display))
+        ax.plot(x, df_bb_display['upper'], color='#FFD700', linewidth=1.2, label=f'BB({bb_period},{bb_std})')
+        ax.plot(x, df_bb_display['ma'], color='#DA70D6', linewidth=1.2)
+        ax.plot(x, df_bb_display['lower'], color='#4169E1', linewidth=1.2)
 
         for i in range(len(df_display)):
             o = df_display.iloc[i]['open']
@@ -118,19 +126,11 @@ class ChartGenerator:
             else:
                 ax.bar([i], [o - c], width=width, bottom=[c], color=color, edgecolor=color)
 
-        ax.set_facecolor('#1a1a1a')
-        ax.grid(True, alpha=0.2, color='#333')
-        ax.set_title(title, fontsize=11, color='#fff', pad=8)
-        ax.tick_params(colors='#999', labelsize=8)
         ax.autoscale_view()
         price_min = min(df_display['low'].min(), df_bb_display['lower'].min())
         price_max = max(df_display['high'].max(), df_bb_display['upper'].max())
         padding = (price_max - price_min) * 0.05
         ax.set_ylim(price_min - padding, price_max + padding)
-        x = range(len(df_bb_display))
-        ax.plot(x, df_bb_display['upper'], color='#FFD700', linewidth=1.2, label=f'BB({bb_period},{bb_std})')
-        ax.plot(x, df_bb_display['ma'], color='#DA70D6', linewidth=1.2)
-        ax.plot(x, df_bb_display['lower'], color='#4169E1', linewidth=1.2)
         ax.set_xlim(-0.5, len(df_display) - 0.5)
         for line in ax.get_lines():
             line.set_clip_on(True)
@@ -172,6 +172,7 @@ class ChartGenerator:
 
         cache_dir = config.CHARTS_DIR
         cache_key = f"{symbol}_triple_cos"
+        
         if cutoff is None:
             cache_file = cache_dir / f"{cache_key}.png"
             if cache_file.exists():
@@ -197,9 +198,9 @@ class ChartGenerator:
         if len(df_symbol) == 0:
             return None
 
-        df_1h = df_symbol.tail(60).copy()
-        df_4h = cls._fetch_ohlcv(symbol, '4h', 40)
-        df_1d = cls._fetch_ohlcv(symbol, '1d', 30)
+        df_1h = df_symbol.tail(720).copy()
+        df_4h = cls._aggregate_timeframe(df_1h, '4h')
+        df_1d = cls._aggregate_timeframe(df_1h, '1d')
 
         plt.style.use('dark_background')
         fig = plt.figure(figsize=(18, 14))

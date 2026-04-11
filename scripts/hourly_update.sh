@@ -97,14 +97,11 @@ if files_arc:
 
 # 收集所有策略的币种并预生成图表
 all_symbols = set()
-for strategy in ['strategy1', 'strategy1_pro', 'arc_bottom', 'coin_quality', 'bollinger', 'deepseek']:
+for strategy in ['strategy1', 'strategy1_pro', 'arc_bottom', 'coin_quality', 'deepseek']:
     files = glob.glob(f'output/{strategy}_*.json')
     if not files:
-        # 尝试其他命名
         if strategy == 'deepseek':
             files = glob.glob('output/deepseek_strategy_*.json')
-        elif strategy == 'bollinger':
-            files = glob.glob('output/bollinger_converge_*.json')
     if files:
         latest = max(files)
         with open(latest, 'r') as f:
