@@ -67,7 +67,7 @@ def check_surge():
                         logger.info(f"发现暴涨: {symbol} +{gain:.2f}% at {candle_time}")
                         
                         try:
-                            image_data = ChartGenerator.generate_triple_chart(symbol)
+                            image_data = ChartGenerator.generate_triple_chart_from_cos(symbol, cutoff=candle_time)
                         except Exception as e:
                             logger.error(f"生成图表失败: {e}")
                             image_data = None

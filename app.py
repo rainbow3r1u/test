@@ -155,8 +155,6 @@ def index():
         try:
             with open(s1_file, 'r', encoding='utf-8') as f:
                 s1_data = json.load(f)
-                # 仅保留所需精简字段，减轻HTML负载
-                s1_data = [{'symbol': item.get('symbol')} for item in s1_data]
         except:
             pass
     
@@ -289,8 +287,9 @@ def triple_chart(symbol):
             if cutoff_str:
                 try:
                     cutoff = pd.to_datetime(cutoff_str)
-                except Exception:
-                    pass
+                    logger.info(f"图表 cutoff 参数: {cutoff_str} -> {cutoff}")
+                except Exception as e:
+                    logger.warning(f"解析 cutoff 失败: {cutoff_str}, {e}")
             chart_data = ChartGenerator.generate_triple_chart_from_cos(symbol, cutoff=cutoff)
             
         if chart_data is None:

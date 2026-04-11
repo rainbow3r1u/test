@@ -107,9 +107,7 @@ class ArcBottomStrategy(BaseStrategy):
             summary={
                 'check_time': utc_now.strftime('%Y-%m-%d %H:%M:%S UTC'),
                 'total_found': len(items),
-                'params': PARAMS
-            },
-            metadata={
+                'params': PARAMS,
                 'all_symbols_bars': all_symbols_bars or []
             }
         )

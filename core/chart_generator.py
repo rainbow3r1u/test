@@ -140,6 +140,9 @@ class ChartGenerator:
         else:
             cutoff_tag = cutoff.strftime('%Y%m%d%H')
             cache_file = cache_dir / f"{cache_key}_{cutoff_tag}.png"
+            if cache_file.exists():
+                with open(cache_file, 'rb') as f:
+                    return f.read()
 
         df_symbol = DataLoader.get_symbol_data(symbol, use_cache=False)
         if df_symbol is None or len(df_symbol) == 0:
