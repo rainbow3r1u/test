@@ -88,13 +88,13 @@
         /* 弹窗样式 */
         .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
         .modal-overlay.open { display: flex; }
-        .modal-content { background: #161b22; border-radius: 12px; max-width: 95vw; max-height: 95vh; overflow: auto; position: relative; }
+        .modal-content { background: #161b22; border-radius: 12px; max-width: 600px; max-height: 80vh; margin: 5vh auto; overflow: auto; position: relative; }
         .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #30363d; position: sticky; top: 0; background: #161b22; z-index: 10; }
         .modal-title { font-size: 18px; font-weight: 600; color: #f0f6fc; }
         .modal-close { background: none; border: none; color: #8b949e; font-size: 24px; cursor: pointer; padding: 0 8px; }
         .modal-close:hover { color: #f0f6fc; }
         .modal-body { padding: 10px; }
-        .modal-body img { width: 100%; max-width: 100%; display: block; margin: 0 auto; }
+        .modal-body img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
         .chart-loading { text-align: center; padding: 100px 20px; color: #8b949e; }
         .chart-loading .spinner { width: 40px; height: 40px; border: 3px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
         @keyframes spin { to { transform: rotate(360deg); } }
@@ -120,7 +120,7 @@
             table, .signal table { font-size: 11px; }
             th, td { padding: 6px 5px; }
             .summary-grid { grid-template-columns: repeat(3, 1fr); }
-            .modal-content { max-width: 100vw; border-radius: 0; }
+            .modal-content { max-width: 100vw; max-height: 100vh; border-radius: 0; margin: 0; }
         }
     </style>
 </head>
@@ -156,6 +156,7 @@
     <a class="tab {% if current_view == 'strategy1' %}active{% endif %}" href="/?view=strategy1">稳步抬升</a>
     <a class="tab {% if current_view == 'strategy1_pro' %}active{% endif %}" href="/?view=strategy1_pro">稳步抬升 PRO <span style="font-size:10px;background:#f0883e;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
     <a class="tab {% if current_view == 'arc_bottom' %}active{% endif %}" href="/?view=arc_bottom">圆弧底突破 <span style="font-size:10px;background:#d29922;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
+    <a class="tab" href="/scanner">Scanner <span style="font-size:10px;background:#58a6ff;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
     {% for s in strategies %}
     <a class="tab {% if current_view == s.name %}active{% endif %}" href="/?view={{s.name}}">{{s.title or s.name}}</a>
     {% endfor %}
@@ -379,7 +380,7 @@
                 <div class="spinner"></div>
                 <div>正在加载行情图...</div>
             </div>
-            <img id="chartImage" style="display:none;" onload="chartLoaded()" onerror="chartError()">
+            <img id="chartImage" style="display:none; width: 100%;" onload="chartLoaded()" onerror="chartError()">
         </div>
     </div>
 </div>

@@ -719,6 +719,47 @@ def api_arc_bottom_debug():
         return jsonify({'code': 1, 'msg': str(e)})
 
 
+@app.route('/scanner')
+def scanner_page():
+    return render_template('scanner.html')
+
+
+@app.route('/api/scanner/coins')
+def api_scanner_coins():
+    try:
+        report = get_latest_report('strategy1_pro')
+        if not report:
+            return jsonify({'code': 0, 'coins': [], 'count': 0})
+        
+        report_data = report.get('data', report)
+        
+        all_symbols_bars = report_data.get('metadata', {}).get('all_symbols_bars',
+                             report_data.get('all_symbols_bars', []))
+        
+        if not all_symbols_bars:
+            items = report_data.get('items', [])
+        else:
+            items = all_symbols_bars
+        
+        coins = []
+        for item in items:
+            coins.append({
+                'symbol': item.get('symbol'),
+                'price': item.get('price', 0),
+                'step': item.get('hrs', 0),
+                'vol': item.get('vol', 0),
+                'gain': item.get('gain', 0),
+                'time': item.get('time', ''),
+                'chart_url': f"/triple-chart/{item.get('symbol')}"
+            })
+        
+        return jsonify({'code': 0, 'coins': coins, 'count': len(coins)})
+        
+    except Exception as e:
+        logger.error(f"Scanner接口出错: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
+
 if __name__ == '__main__':
     logger.info(f"启动Web服务: http://{config.WEB_HOST}:{config.WEB_PORT}")
     socketio.run(app, host=config.WEB_HOST, port=5002, debug=False, allow_unsafe_werkzeug=True)

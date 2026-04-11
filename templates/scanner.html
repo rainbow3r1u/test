@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scanner - 加密货币扫描</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #0d1117; color: #e6edf3; min-height: 100vh; }
+        
+        .header { background: #161b22; padding: 16px 24px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header .time { color: #8b949e; font-size: 13px; }
+        
+        .tabs { background: #161b22; padding: 0 20px; border-bottom: 1px solid #30363d; display: flex; gap: 4px; overflow-x: auto; }
+        .tab { padding: 10px 16px; color: #8b949e; text-decoration: none; font-size: 13px; border-bottom: 2px solid transparent; white-space: nowrap; }
+        .tab:hover { color: #e6edf3; }
+        .tab.active { color: #f0883e; border-bottom-color: #f0883e; }
+        
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        
+        .stats-bar { display: flex; gap: 20px; margin-bottom: 20px; padding: 12px 16px; background: #161b22; border-radius: 8px; border: 1px solid #30363d; }
+        .stat-item { display: flex; flex-direction: column; }
+        .stat-label { font-size: 11px; color: #8b949e; }
+        .stat-value { font-size: 18px; font-weight: 600; color: #58a6ff; }
+        
+        .filter-bar { display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+        .filter-bar select, .filter-bar input { background: #161b22; border: 1px solid #30363d; color: #e6edf3; padding: 8px 12px; border-radius: 6px; font-size: 13px; }
+        .filter-bar select:focus, .filter-bar input:focus { outline: none; border-color: #58a6ff; }
+        
+        .coins-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
+        
+        .coin-card { background: #161b22; border: 1px solid #30363d; border-radius: 12px; overflow: hidden; transition: all 0.2s; }
+        .coin-card:hover { border-color: #58a6ff; transform: translateY(-2px); }
+        
+        .card-header { padding: 14px 16px; border-bottom: 1px solid #30363d; display: flex; justify-content: space-between; align-items: center; }
+        .symbol { font-size: 16px; font-weight: 600; color: #58a6ff; cursor: pointer; }
+        .symbol:hover { text-decoration: underline; }
+        .step-badge { background: linear-gradient(135deg, #238636, #2ea043); color: #fff; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600; }
+        
+        .card-body { padding: 14px 16px; }
+        
+        .price-row { display: flex; justify-content: space-between; margin-bottom: 12px; }
+        .price { font-size: 20px; font-weight: 600; }
+        .gain { font-size: 14px; font-weight: 600; }
+        .gain.positive { color: #3fb950; }
+        .gain.negative { color: #f85149; }
+        
+        .metrics { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-bottom: 12px; }
+        .metric { background: #0d1117; padding: 8px 10px; border-radius: 6px; }
+        .metric-label { font-size: 10px; color: #8b949e; margin-bottom: 2px; }
+        .metric-value { font-size: 13px; font-weight: 500; }
+        
+        .time-info { font-size: 11px; color: #8b949e; margin-bottom: 12px; }
+        
+        .chart-preview { background: #0d1117; border-radius: 6px; overflow: hidden; cursor: pointer; }
+        .chart-preview img { width: 100%; height: auto; display: block; }
+        .chart-preview:hover { opacity: 0.9; }
+        
+        .loading { text-align: center; padding: 60px 20px; color: #8b949e; }
+        .loading .spinner { width: 40px; height: 40px; border: 3px solid #30363d; border-top-color: #58a6ff; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .empty { text-align: center; padding: 60px 20px; color: #8b949e; }
+        
+        /* Modal */
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-content { background: #161b22; border-radius: 12px; max-width: 600px; max-height: 80vh; margin: 5vh auto; overflow: auto; position: relative; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; border-bottom: 1px solid #30363d; position: sticky; top: 0; background: #161b22; z-index: 10; }
+        .modal-title { font-size: 18px; font-weight: 600; color: #f0f6fc; }
+        .modal-close { background: none; border: none; color: #8b949e; font-size: 24px; cursor: pointer; padding: 0 8px; }
+        .modal-close:hover { color: #f0f6fc; }
+        .modal-body { padding: 10px; }
+        .modal-body img { max-width: 100%; height: auto; display: block; margin: 0 auto; }
+        
+        @media (max-width: 768px) {
+            .coins-grid { grid-template-columns: 1fr; }
+            .modal-content { max-width: 100vw; max-height: 100vh; border-radius: 0; margin: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Scanner</h1>
+        <div class="time" id="bjTime"></div>
+    </div>
+    
+    <div class="tabs">
+        <a class="tab" href="/">稳步抬升</a>
+        <a class="tab" href="/?view=strategy1_pro">稳步抬升 PRO</a>
+        <a class="tab" href="/?view=arc_bottom">圆弧底突破</a>
+        <a class="tab active" href="/scanner">Scanner</a>
+    </div>
+    
+    <div class="container">
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">扫描币种</span>
+                <span class="stat-value" id="totalCoins">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">更新时间</span>
+                <span class="stat-value" id="updateTime" style="font-size:14px;">-</span>
+            </div>
+        </div>
+        
+        <div class="filter-bar">
+            <label>排序</label>
+            <select id="sortBy" onchange="renderCoins()">
+                <option value="step">连续小时数</option>
+                <option value="gain">涨幅</option>
+                <option value="rsi7">RSI(7)</option>
+                <option value="entity_ratio">实体比例</option>
+            </select>
+            
+            <label>RSI(7)</label>
+            <select id="filterRsi" onchange="renderCoins()">
+                <option value="">全部</option>
+                <option value="lt30">&lt; 30 (超卖)</option>
+                <option value="gt70">&gt; 70 (超买)</option>
+            </select>
+            
+            <label>布林位置</label>
+            <select id="filterBb" onchange="renderCoins()">
+                <option value="">全部</option>
+                <option value="上轨上方">上轨上方</option>
+                <option value="中轨上方">中轨上方</option>
+                <option value="中轨下方">中轨下方</option>
+                <option value="下轨下方">下轨下方</option>
+            </select>
+        </div>
+        
+        <div id="coinsContainer" class="coins-grid"></div>
+        <div id="loading" class="loading"><div class="spinner"></div>加载中...</div>
+    </div>
+    
+    <!-- Chart Modal -->
+    <div class="modal-overlay" id="chartModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span class="modal-title" id="modalTitle">图表</span>
+                <button class="modal-close" onclick="closeChartModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <img id="chartImage" style="display:none;">
+                <div id="chartLoading" class="loading"><div class="spinner"></div>加载中...</div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        var allCoins = [];
+        
+        function updateTime() {
+            var now = new Date();
+            var bj = new Date(now.getTime() + 8*3600000);
+            document.getElementById('bjTime').textContent = '北京时间: ' + bj.toLocaleString('zh-CN',{timeZone:'Asia/Shanghai',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'});
+        }
+        
+        function loadCoins() {
+            fetch('/api/scanner/coins')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    document.getElementById('loading').style.display = 'none';
+                    if (data.code === 0) {
+                        allCoins = data.coins;
+                        document.getElementById('totalCoins').textContent = data.count;
+                        document.getElementById('updateTime').textContent = new Date().toLocaleTimeString('zh-CN');
+                        renderCoins();
+                    } else {
+                        document.getElementById('coinsContainer').innerHTML = '<div class="empty">加载失败: ' + data.msg + '</div>';
+                    }
+                })
+                .catch(function(e) {
+                    document.getElementById('loading').style.display = 'none';
+                    document.getElementById('coinsContainer').innerHTML = '<div class="empty">加载失败: ' + e + '</div>';
+                });
+        }
+        
+        function renderCoins() {
+            var sortBy = document.getElementById('sortBy').value;
+            var filterRsi = document.getElementById('filterRsi').value;
+            var filterBb = document.getElementById('filterBb').value;
+            
+            var coins = allCoins.filter(function(c) {
+                if (filterRsi === 'lt30' && c.rsi7 >= 30) return false;
+                if (filterRsi === 'gt70' && c.rsi7 <= 70) return false;
+                if (filterBb && c.bb_position !== filterBb) return false;
+                return true;
+            });
+            
+            coins.sort(function(a, b) {
+                if (sortBy === 'step') return (b.step || 0) - (a.step || 0);
+                if (sortBy === 'gain') return (b.gain || 0) - (a.gain || 0);
+                if (sortBy === 'rsi7') return (b.rsi7 || 0) - (a.rsi7 || 0);
+                if (sortBy === 'entity_ratio') return (b.entity_ratio || 0) - (a.entity_ratio || 0);
+                return 0;
+            });
+            
+            var html = '';
+            for (var i = 0; i < coins.length; i++) {
+                var c = coins[i];
+                var gainClass = c.gain >= 0 ? 'positive' : 'negative';
+                var rsiColor = c.rsi7 > 70 ? '#f85149' : (c.rsi7 < 30 ? '#3fb950' : '#e6edf3');
+                
+                html += '<div class="coin-card">';
+                html += '<div class="card-header">';
+                html += '<span class="symbol" onclick="openChartModal(\'' + c.symbol + '\')">' + c.symbol + '</span>';
+                html += '<span class="step-badge">' + c.step + 'h</span>';
+                html += '</div>';
+                html += '<div class="card-body">';
+                html += '<div class="price-row">';
+                html += '<span class="price">' + c.price + '</span>';
+                html += '<span class="gain ' + gainClass + '">' + (c.gain >= 0 ? '+' : '') + c.gain + '%</span>';
+                html += '</div>';
+                html += '<div class="time-info">' + c.hrs + '</div>';
+                html += '<div class="metrics">';
+                html += '<div class="metric"><div class="metric-label">RSI(7)</div><div class="metric-value" style="color:' + rsiColor + '">' + c.rsi7 + '</div></div>';
+                html += '<div class="metric"><div class="metric-label">布林位置</div><div class="metric-value">' + c.bb_position + '</div></div>';
+                html += '<div class="metric"><div class="metric-label">成交额</div><div class="metric-value">' + c.vol + '</div></div>';
+                html += '<div class="metric"><div class="metric-label">实体比例</div><div class="metric-value">' + c.entity_ratio + '%</div></div>';
+                html += '</div>';
+                html += '<div class="chart-preview" onclick="openChartModal(\'' + c.symbol + '\')">';
+                html += '<img src="' + c.chart_url + '?t=' + Date.now() + '" alt="chart" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22><text x=%2250%%22 y=%2225%22 text-anchor=%22middle%22 fill=%22%23666%22>暂无图表</text></svg>\'">';
+                html += '</div>';
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            if (coins.length === 0) {
+                html = '<div class="empty">没有符合条件的币种</div>';
+            }
+            
+            document.getElementById('coinsContainer').innerHTML = html;
+        }
+        
+        function openChartModal(symbol) {
+            var modal = document.getElementById('chartModal');
+            var img = document.getElementById('chartImage');
+            var loading = document.getElementById('chartLoading');
+            
+            document.getElementById('modalTitle').textContent = symbol + ' 行情图';
+            loading.style.display = 'block';
+            img.style.display = 'none';
+            modal.classList.add('open');
+            
+            img.src = '/triple-chart/' + symbol + '?t=' + Date.now();
+        }
+        
+        function closeChartModal() {
+            document.getElementById('chartModal').classList.remove('open');
+        }
+        
+        function closeModal(event) {
+            if (event.target.id === 'chartModal') {
+                closeChartModal();
+            }
+        }
+        
+        document.getElementById('chartImage').onload = function() {
+            document.getElementById('chartLoading').style.display = 'none';
+            this.style.display = 'block';
+        };
+        
+        updateTime();
+        setInterval(updateTime, 1000);
+        loadCoins();
+    </script>
+</body>
+</html>

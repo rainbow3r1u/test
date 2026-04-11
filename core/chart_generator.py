@@ -67,22 +67,52 @@ class ChartGenerator:
             logger.warning(f"获取 {symbol} {timeframe} K线失败: {e}")
             return None
 
+    @staticmethod
+    def _calculate_bollinger_bands(df: pd.DataFrame, period: int = 20, std_dev: float = 2.0):
+        df = df.copy()
+        df['ma'] = df['close'].rolling(window=period).mean()
+        df['std'] = df['close'].rolling(window=period).std()
+        df['upper'] = df['ma'] + std_dev * df['std']
+        df['lower'] = df['ma'] - std_dev * df['std']
+        return df
+
     @classmethod
-    def _draw_candlestick(cls, ax, df: pd.DataFrame, title: str, linewidth: float = 1):
+    def _draw_candlestick(cls, ax, df: pd.DataFrame, title: str, linewidth: float = 1, timeframe: str = '1h'):
         if df is None or len(df) == 0:
             ax.text(0.5, 0.5, '无数据', ha='center', va='center', fontsize=14, color='#666')
             ax.set_title(title, fontsize=11, color='#fff', pad=8)
             return
 
-        for i in range(len(df)):
-            o = df.iloc[i]['open']
-            h = df.iloc[i]['high']
-            l = df.iloc[i]['low']
-            c = df.iloc[i]['close']
+        # 布林通道 - 用完整数据计算
+        bb_period = min(20, len(df))
+        if bb_period < 5:
+            bb_period = len(df)
+        bb_std = 2.0
+        df_bb = cls._calculate_bollinger_bands(df, bb_period, bb_std)
+
+        # 按 timeframe 控制显示数量
+        if timeframe == '1h':
+            display_count = 24
+        elif timeframe == '4h':
+            display_count = 12
+        elif timeframe == '1d':
+            display_count = 14
+        else:
+            display_count = len(df)
+
+        # 只显示最后 display_count 根
+        df_display = df.tail(display_count).reset_index(drop=True)
+        df_bb_display = df_bb.tail(display_count).reset_index(drop=True)
+
+        for i in range(len(df_display)):
+            o = df_display.iloc[i]['open']
+            h = df_display.iloc[i]['high']
+            l = df_display.iloc[i]['low']
+            c = df_display.iloc[i]['close']
             color = '#00a854' if c >= o else '#eb3c3c'
 
-            ax.plot([i, i], [l, h], color=color, linewidth=linewidth)
-            width = 0.6 if linewidth == 1 else 0.5
+            ax.plot([i, i], [l, h], color=color, linewidth=0.5)
+            width = 0.4 if linewidth == 1 else 0.3
             if c >= o:
                 ax.bar([i], [c - o], width=width, bottom=[o], color=color, edgecolor=color)
             else:
@@ -92,7 +122,19 @@ class ChartGenerator:
         ax.grid(True, alpha=0.2, color='#333')
         ax.set_title(title, fontsize=11, color='#fff', pad=8)
         ax.tick_params(colors='#999', labelsize=8)
-        ax.set_xlim(-0.5, len(df) - 0.5)
+        ax.autoscale_view()
+        price_min = min(df_display['low'].min(), df_bb_display['lower'].min())
+        price_max = max(df_display['high'].max(), df_bb_display['upper'].max())
+        padding = (price_max - price_min) * 0.05
+        ax.set_ylim(price_min - padding, price_max + padding)
+        x = range(len(df_bb_display))
+        ax.plot(x, df_bb_display['upper'], color='#FFD700', linewidth=1.2, label=f'BB({bb_period},{bb_std})')
+        ax.plot(x, df_bb_display['ma'], color='#DA70D6', linewidth=1.2)
+        ax.plot(x, df_bb_display['lower'], color='#4169E1', linewidth=1.2)
+        ax.set_xlim(-0.5, len(df_display) - 0.5)
+        for line in ax.get_lines():
+            line.set_clip_on(True)
+            line.set_clip_box(ax.bbox)
 
     @classmethod
     def _aggregate_to_daily(cls, df_4h: pd.DataFrame) -> pd.DataFrame:
@@ -155,9 +197,9 @@ class ChartGenerator:
         if len(df_symbol) == 0:
             return None
 
-        df_1h = df_symbol.tail(24).copy()
-        df_4h = cls._aggregate_timeframe(df_symbol, '4h').tail(12)
-        df_1d = cls._aggregate_timeframe(df_symbol, '1D').tail(12)
+        df_1h = df_symbol.tail(60).copy()
+        df_4h = cls._fetch_ohlcv(symbol, '4h', 40)
+        df_1d = cls._fetch_ohlcv(symbol, '1d', 30)
 
         plt.style.use('dark_background')
         fig = plt.figure(figsize=(18, 14))
@@ -167,11 +209,11 @@ class ChartGenerator:
         ax3 = fig.add_subplot(gs[2])
         fig.patch.set_facecolor('#1a1a1a')
 
-        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (COS snapshot)', linewidth=1)
-        cls._draw_candlestick(ax2, df_4h, f'{symbol} - 4H (COS snapshot)', linewidth=1.5)
-        cls._draw_candlestick(ax3, df_1d, f'{symbol} - Daily (COS snapshot)', linewidth=2)
+        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (COS snapshot)', linewidth=1, timeframe='1h')
+        cls._draw_candlestick(ax2, df_4h, f'{symbol} - 4H (COS snapshot)', linewidth=1.5, timeframe='4h')
+        cls._draw_candlestick(ax3, df_1d, f'{symbol} - Daily (COS snapshot)', linewidth=2, timeframe='1d')
 
-        plt.tight_layout()
+        plt.tight_layout(pad=1.5)
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=120, facecolor='#1a1a1a', bbox_inches='tight', pad_inches=0.1)
         buf.seek(0)
@@ -185,9 +227,9 @@ class ChartGenerator:
     @classmethod
     def generate_triple_chart_live(cls, symbol: str) -> Optional[bytes]:
         """通过 REST API 获取最新行情生成图表"""
-        df_1h = cls._fetch_ohlcv(symbol, '1h', 24, filter_incomplete=False)
-        df_4h = cls._fetch_ohlcv(symbol, '4h', 12, filter_incomplete=False)
-        df_1d = cls._fetch_ohlcv(symbol, '1d', 12, filter_incomplete=False)
+        df_1h = cls._fetch_ohlcv(symbol, '1h', 60, filter_incomplete=False)
+        df_4h = cls._fetch_ohlcv(symbol, '4h', 40, filter_incomplete=False)
+        df_1d = cls._fetch_ohlcv(symbol, '1d', 30, filter_incomplete=False)
 
         if df_1h is None or df_4h is None or df_1d is None:
             return None
@@ -200,11 +242,11 @@ class ChartGenerator:
         ax3 = fig.add_subplot(gs[2])
         fig.patch.set_facecolor('#1a1a1a')
 
-        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (实时)', linewidth=1)
-        cls._draw_candlestick(ax2, df_4h, f'{symbol} - 4H (实时)', linewidth=1.5)
-        cls._draw_candlestick(ax3, df_1d, f'{symbol} - Daily (实时)', linewidth=2)
+        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (实时)', linewidth=1, timeframe='1h')
+        cls._draw_candlestick(ax2, df_4h, f'{symbol} - 4H (实时)', linewidth=1.5, timeframe='4h')
+        cls._draw_candlestick(ax3, df_1d, f'{symbol} - Daily (实时)', linewidth=2, timeframe='1d')
 
-        plt.tight_layout()
+        plt.tight_layout(pad=1.5)
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=120, facecolor='#1a1a1a', bbox_inches='tight', pad_inches=0.1)
         buf.seek(0)
@@ -247,11 +289,11 @@ class ChartGenerator:
 
         fig.patch.set_facecolor('#1a1a1a')
 
-        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (24 candles)', linewidth=1)
-        cls._draw_candlestick(ax2, df_daily, 'Daily (from 4H, 10 candles ~10 days)', linewidth=1.5)
-        cls._draw_candlestick(ax3, df_4h_6, '4H (6 candles ~1 day)', linewidth=2)
+        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (24 candles)', linewidth=1, timeframe='1h')
+        cls._draw_candlestick(ax2, df_daily, 'Daily (from 4H, 10 candles ~10 days)', linewidth=1.5, timeframe='1d')
+        cls._draw_candlestick(ax3, df_4h_6, '4H (6 candles ~1 day)', linewidth=2, timeframe='4h')
 
-        plt.tight_layout()
+        plt.tight_layout(pad=1.5)
 
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=130, facecolor='#1a1a1a')

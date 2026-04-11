@@ -72,7 +72,7 @@ class BinanceKlineCollector:
         logger.info(f"获取到 {len(symbols)} 个 USDT 永续合约")
         return symbols
 
-    def fetch_klines(self, symbol: str, interval: str = '1h', limit: int = 480) -> List[Dict]:
+    def fetch_klines(self, symbol: str, interval: str = '1h', limit: int = 520) -> List[Dict]:
         params = {'symbol': symbol, 'interval': interval, 'limit': limit}
         data = self._api_request("/fapi/v1/klines", params=params)
         if not data:
