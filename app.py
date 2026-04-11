@@ -55,14 +55,18 @@ _report_cache = {}
 _report_mtime = {}
 
 def get_latest_report(strategy_name: str) -> Dict[str, Any]:
-    # 优先查找通用名称的最新报告
-    target_file = str(config.OUTPUT_DIR / f'{strategy_name}.json')
-    if not os.path.exists(target_file):
-        pattern = str(config.OUTPUT_DIR / f'{strategy_name}_*.json')
-        files = glob.glob(pattern)
-        if not files:
-            return None
-        target_file = max(files, key=os.path.getmtime)
+    # 优先读 /var/www/（每次更新后的最新数据）
+    var_www_file = f'/var/www/{strategy_name}.json'
+    if os.path.exists(var_www_file):
+        target_file = var_www_file
+    else:
+        target_file = str(config.OUTPUT_DIR / f'{strategy_name}.json')
+        if not os.path.exists(target_file):
+            pattern = str(config.OUTPUT_DIR / f'{strategy_name}_*.json')
+            files = glob.glob(pattern)
+            if not files:
+                return None
+            target_file = max(files, key=os.path.getmtime)
         
     mtime = os.path.getmtime(target_file)
     if strategy_name in _report_cache and _report_mtime.get(strategy_name) == mtime:

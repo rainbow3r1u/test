@@ -4,7 +4,7 @@
 
 cd /home/ubuntu/crypto-scanner
 
-LOG_FILE="/var/log/crypto_scanner.log"
+LOG_FILE="/home/ubuntu/crypto-scanner/logs/hourly_update.log"
 echo "========================================" >> $LOG_FILE
 echo "$(date '+%Y-%m-%d %H:%M:%S') 开始每小时更新" >> $LOG_FILE
 
@@ -129,3 +129,8 @@ python3 scripts/monitor_surge.py >> $LOG_FILE 2>&1
 
 echo "$(date '+%Y-%m-%d %H:%M:%S') 每小时更新完成" >> $LOG_FILE
 echo "========================================" >> $LOG_FILE
+
+# 复制最新报告到 /var/www/
+cp output/strategy1_$(date +%Y-%m-%d)_*.json /var/www/strategy1.json 2>/dev/null || true
+cp output/strategy1_pro_$(date +%Y-%m-%d)_*.json /var/www/strategy1_pro.json 2>/dev/null || true
+cp output/arc_bottom_$(date +%Y-%m-%d)_*.json /var/www/arc_bottom.json 2>/dev/null || true
