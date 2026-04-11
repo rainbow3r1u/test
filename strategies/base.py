@@ -36,7 +36,7 @@ class BaseStrategy(ABC):
         pass
 
     def generate_charts(self, symbols: List[str]) -> int:
-        return ChartGenerator.generate_charts_batch(symbols)
+        return ChartGenerator.generate_triple_charts_batch(symbols)
 
     def save_report(self, report, save_to_db: bool = True) -> Path:
         # 兼容 StrategyReport 对象和 dict
