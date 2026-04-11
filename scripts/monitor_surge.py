@@ -1,65 +1,69 @@
 #!/usr/bin/env python3
 """
 暴涨监控脚本 - 检测1小时涨幅10%以上的币种
-"""
+使用 COS 数据，"""
 import sys
 from pathlib import Path
 from datetime import datetime, timedelta
+import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-import ccxt
 from utils.logger import get_logger
 from utils.surge_manager import SurgeManager
 from core.chart_generator import ChartGenerator
+from core.data_loader import DataLoader
 
 logger = get_logger('surge_monitor')
 
 
 def check_surge():
-    """检查暴涨币种"""
+    """检查暴涨币种 - 使用 COS 数据"""
     try:
-        exchange = ccxt.binance({
-            'enableRateLimit': True,
-            'options': {'defaultType': 'future'}
-        })
+        logger.info("从 COS 读取 K 线数据...")
+        df = DataLoader.get_klines(use_cache=False)
         
-        logger.info("获取市场数据...")
-        markets = exchange.load_markets()
+        if df is None or len(df) == 0:
+            logger.error("无法获取 K 线数据")
+            return
         
-        symbols = [
-            m['symbol'] for m in markets.values()
-            if m.get('swap') and m.get('quote') == 'USDT' and m.get('active')
-        ]
+        logger.info(f"读取 {len(df)} 条 K 线记录")
         
+        now_utc = datetime.utcnow()
+        current_hour_start = now_utc.replace(minute=0, second=0, microsecond=0)
+        today_utc = now_utc.date()
+        
+        df['timestamp'] = pd.to_datetime(df['timestamp'])
+        if df['timestamp'].dt.tz is not None:
+            df['timestamp'] = df['timestamp'].dt.tz_localize(None)
+        
+        df_today = df[df['timestamp'].dt.date == today_utc]
+        
+        symbols = df_today['symbol'].unique()
         logger.info(f"检查 {len(symbols)} 个币种...")
         
         surge_count = 0
         
         for idx, symbol in enumerate(symbols, 1):
             try:
-                ohlcv = exchange.fetch_ohlcv(symbol, timeframe='1h', limit=24)
+                symbol_df = df_today[df_today['symbol'] == symbol].sort_values('timestamp')
                 
-                if len(ohlcv) < 2:
+                if len(symbol_df) < 2:
                     continue
                 
-                for i in range(len(ohlcv)):
-                    candle = ohlcv[i]
-                    candle_time = datetime.utcfromtimestamp(candle[0]/1000)
-                    
-                    now_utc = datetime.utcnow()
-                    current_hour_start = now_utc.replace(minute=0, second=0, microsecond=0)
+                for i in range(len(symbol_df)):
+                    row = symbol_df.iloc[i]
+                    candle_time = row['timestamp']
                     
                     if candle_time >= current_hour_start:
                         continue
                     
-                    today_utc = now_utc.date()
-                    if candle_time.date() != today_utc:
-                        continue
+                    open_price = row['open']
+                    close_price = row['close']
+                    volume = row['volume']
                     
-                    open_price = candle[1]
-                    close_price = candle[4]
-                    volume = candle[5]
+                    if open_price <= 0:
+                        continue
                     
                     gain = (close_price - open_price) / open_price * 100
                     
@@ -73,7 +77,7 @@ def check_surge():
                             image_data = None
                         
                         recorded = SurgeManager.record_surge(
-                            symbol=symbol.replace('/USDT:USDT', 'USDT'),
+                            symbol=symbol.replace('/USDT:USDT', 'USDT').replace('USDT', 'USDT'),
                             gain=gain,
                             price=close_price,
                             volume=volume,
