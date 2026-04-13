@@ -745,7 +745,7 @@ setInterval(updateCountdown, 1000);
 loadAccountInfo();
 
 var lastAccountUpdateTime = Date.now();
-setInterval(loadAccountInfo, 5000);
+// setInterval(loadAccountInfo, 30000); // 临时禁用
 
 function loadHistory() {
     fetch('/api/history/six-hour?days=7')
