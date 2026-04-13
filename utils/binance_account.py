@@ -198,6 +198,7 @@ class BinanceAccountWS:
     _listen_key = None
     _account_data = {}
     _last_update = None
+    _retry_delay = 30
     
     WS_URL = "wss://fstream.binance.com/ws/"
     REST_API = "https://fapi.binance.com"
@@ -252,27 +253,41 @@ class BinanceAccountWS:
     
     @classmethod
     def _keepalive_listen_key(cls):
+        # 如果还在全局熔断期内，直接拒绝请求
+        if time.time() < BinanceAccount._banned_until:
+            remaining = int(BinanceAccount._banned_until - time.time())
+            logger.warning(f"IP 处于熔断期，拦截 keepalive 请求，还需等待 {remaining} 秒")
+            return 'BANNED'
+            
         url = f"{cls.REST_API}/fapi/v1/listenKey"
         headers = {'X-MBX-APIKEY': config.BINANCE_API_KEY}
         try:
             resp = requests.put(url, headers=headers, timeout=10)
             resp.raise_for_status()
             logger.debug("listenKey keepalive 成功")
+            return 'SUCCESS'
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code in [418, 429]:
+                retry_after = int(e.response.headers.get('Retry-After', 300))
+                BinanceAccount._banned_until = time.time() + retry_after
+                logger.error(f"🚨 [WS API] keepalive 触发币安封禁 ({e.response.status_code})，全局熔断 {retry_after} 秒！")
+                return 'BANNED'
+            logger.error(f"listenKey keepalive 失败: {e}")
+            return None
         except Exception as e:
             logger.error(f"listenKey keepalive 失败: {e}")
+            return None
     
     @classmethod
     def _run_ws(cls):
-        retry_delay = 30
-        
         while cls._running:
             try:
                 listen_key = cls._get_listen_key()
                 
                 if listen_key == 'BANNED':
-                    logger.warning(f"由于 IP 封禁，WebSocket 线程深度休眠 {retry_delay} 秒...")
-                    time.sleep(retry_delay)
-                    retry_delay = min(retry_delay * 2, 3600)  # 指数退避，最大1小时
+                    logger.warning(f"由于 IP 封禁，WebSocket 线程深度休眠 {cls._retry_delay} 秒...")
+                    time.sleep(cls._retry_delay)
+                    cls._retry_delay = min(cls._retry_delay * 2, 3600)  # 指数退避，最大1小时
                     continue
                 elif not listen_key:
                     logger.error("无法获取 listenKey，30秒后重试")
@@ -280,7 +295,7 @@ class BinanceAccountWS:
                     continue
                 
                 # 成功获取，重置延迟
-                retry_delay = 30
+                cls._retry_delay = 30
                 cls._listen_key = listen_key
                 ws_url = cls.WS_URL + listen_key
                 
