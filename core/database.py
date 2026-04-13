@@ -154,7 +154,9 @@ class Database:
 
     @classmethod
     def close(cls):
+        """关闭当前线程的数据库连接"""
         with cls._db_lock:
-            if cls._conn:
-                cls._conn.close()
-                cls._conn = None
+            if hasattr(cls._local, 'conn') and cls._local.conn:
+                cls._local.conn.close()
+                cls._local.conn = None
+                logger.debug("数据库连接已关闭")

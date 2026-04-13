@@ -201,9 +201,34 @@ class Strategy1Pro(BaseStrategy):
                     self.logger.info(f"  {symbol} 淘汰: 实体比例 {body_ratio:.2f} < {min_body_ratio} (长上影线/十字星)")
                     break
                     
+                # 先检查低点抬高（在检查单根涨幅之前）
+                if consecutive_count == 0:
+                    current_low = low_price
+                    consecutive_count = 1
+                else:
+                    # 下一根更旧的K线, low必须比当前的current_low更低才算抬高(从旧到新看)
+                    if low_price >= current_low:
+                        break
+                    current_low = low_price
+                    consecutive_count += 1
+                
+                # 记录当前bar信息（在检查单根涨幅之前）
+                bar_info = {
+                    't': row['timestamp'].strftime('%m-%d %H:%M'),
+                    'o': f"{open_price:.6f}",
+                    'high': f"{high_price:.6f}",
+                    'low': f"{low_price:.6f}",
+                    'c': f"{close_price:.6f}",
+                    'r': f"{range_pct*100:.2f}%",
+                    'v': f"{row['quote_volume']/1e6:.2f}M",
+                    'type': '阳线' if is_bullish else '阴线'
+                }
+                bars_info.insert(0, bar_info)  # 插入头部保持旧→新顺序
+                
+                # 检查单根涨幅是否超标（在记录bar_info之后）
                 if single_gain > max_single_gain:
                     self.logger.info(f"  {symbol} 资金异动观察: 单根涨幅 {single_gain*100:.2f}% > {max_single_gain*100:.2f}% (加速赶顶)")
-                    # 添加到观察窗，不进入正常的step流程
+                    # 添加到观察窗，保留所有已通过的bars
                     obs_bar = {
                         't': row['timestamp'].strftime('%m-%d %H:%M'),
                         'o': f"{open_price:.6f}",
@@ -218,40 +243,17 @@ class Strategy1Pro(BaseStrategy):
                         'symbol': symbol,
                         'price': float(close_price),
                         'time': obs_bar['t'],
-                        'startTime': obs_bar['t'],
+                        'startTime': bars_info[0]['t'] if bars_info else obs_bar['t'],
                         'endTime': obs_bar['t'],
                         'endHour': row['timestamp'].hour,
-                        'hrs': consecutive_count if consecutive_count > 0 else 1, # 保留已有连涨进度
+                        'hrs': consecutive_count,
                         'vol': round(row['quote_volume']/1e6, 2),
                         'gain': round(single_gain*100, 2),
-                        'bars': bars_info + [obs_bar] if bars_info else [obs_bar], # 保留历史K线路径
+                        'bars': bars_info[:-1] + [obs_bar] if bars_info else [obs_bar],
                         'is_watchlist': True,
                         'watch_reason': f"单根涨幅 {single_gain*100:.2f}% > {max_single_gain*100:.2f}%"
                     })
                     break
-                
-                # 低点抬高: 从新到旧, 越往旧走low应该越低
-                if consecutive_count == 0:
-                    current_low = low_price
-                    consecutive_count = 1
-                else:
-                    # 下一根更旧的K线, low必须比当前的current_low更低才算抬高(从旧到新看)
-                    if low_price >= current_low:
-                        break
-                    current_low = low_price
-                    consecutive_count += 1
-                
-                bar_info = {
-                    't': row['timestamp'].strftime('%m-%d %H:%M'),
-                    'o': f"{open_price:.6f}",
-                    'high': f"{high_price:.6f}",
-                    'low': f"{low_price:.6f}",
-                    'c': f"{close_price:.6f}",
-                    'r': f"{range_pct*100:.2f}%",
-                    'v': f"{row['quote_volume']/1e6:.2f}M",
-                    'type': '阳线' if is_bullish else '阴线'
-                }
-                bars_info.insert(0, bar_info)  # 插入头部保持旧→新顺序
                 
                 step_key = f'step{consecutive_count}'
                 self.logger.info(f"  {symbol} STEP{step_key}: {bar_info['t']} 阳线, 震幅{range_pct*100:.2f}%, low={low_price:.6f}")

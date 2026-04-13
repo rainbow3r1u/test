@@ -107,11 +107,11 @@ class BinanceKlineCollector:
             })
         return rows
 
-    def _fetch_klines_task(self, symbol: str, idx: int, total: int):
+    def _fetch_klines_task(self, symbol: str, idx: int, total: int, delay: float = 0.02):
         rows = self.fetch_klines(symbol)
         if idx % 50 == 0 or idx == total:
             logger.info(f"进度: {idx}/{total}")
-        time.sleep(0.02)
+        time.sleep(delay)
         return symbol, rows
 
     def _upload_to_cos(self, local_file: str, cos_key: str) -> bool:

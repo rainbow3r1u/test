@@ -33,6 +33,8 @@ class BinanceWebSocketManager:
             self.running = False
             self.socketio = None
             self.kline_cache: Dict[str, list] = {}
+            self._reconnect_depth = 0  # 递归重连深度计数
+            self._max_reconnect_depth = 10  # 最大递归深度
     
     def set_socketio(self, socketio):
         self.socketio = socketio
@@ -89,11 +91,11 @@ class BinanceWebSocketManager:
         logger.info("WebSocket管理器启动")
 
     def restart(self):
-        self.stop()
         with self.sub_lock:
+            self.stop()
             has_subscriptions = len(self.subscriptions) > 0
-        if has_subscriptions:
-            self.start()
+            if has_subscriptions:
+                self.start()
     
     def stop(self):
         self.running = False
@@ -148,9 +150,16 @@ class BinanceWebSocketManager:
         except Exception as e:
             logger.error(f"WebSocket连接失败: {e}")
             if self.running:
-                logger.info("5秒后重连...")
+                self._reconnect_depth += 1
+                if self._reconnect_depth > self._max_reconnect_depth:
+                    logger.error(f"递归重连深度超过限制({self._max_reconnect_depth})，停止重连")
+                    self._reconnect_depth = 0
+                    return
+                logger.info(f"5秒后重连... (深度: {self._reconnect_depth}/{self._max_reconnect_depth})")
                 await asyncio.sleep(5)
                 await self._connect_binance()
+            else:
+                self._reconnect_depth = 0  # 重置深度计数
     
     async def _handle_message(self, data: dict):
         if 'stream' not in data or 'data' not in data:
