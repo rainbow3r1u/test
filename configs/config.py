@@ -15,6 +15,9 @@ DATA_DIR = BASE_DIR / 'data'
 STATIC_DIR = BASE_DIR / 'static'
 CHARTS_DIR = STATIC_DIR / 'charts'
 
+# Nginx 共享目录 (可选配置)
+NGINX_WWW_DIR = Path(os.environ.get('NGINX_WWW_DIR', '/var/www/'))
+
 for d in [OUTPUT_DIR, DATA_DIR, STATIC_DIR, CHARTS_DIR]:
     d.mkdir(parents=True, exist_ok=True)
 

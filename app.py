@@ -484,6 +484,10 @@ def api_strategy1_scan():
                         
         except Exception as e:
             logger.exception(f"扫描执行失败: {e}")
+            try:
+                socketio.emit('scan_error', {'msg': f"扫描失败: {str(e)}"}, namespace='/')
+            except Exception as emit_err:
+                logger.error(f"推送扫描失败通知报错: {emit_err}")
         finally:
             with scan_lock:
                 is_scanning = False
@@ -727,12 +731,13 @@ def scanner_page():
 @app.route('/api/scanner/coins')
 def api_scanner_coins():
     try:
-        signal_file = '/var/www/all_signals_pro.json'
-        if not os.path.exists(signal_file):
-            signal_file = str(config.DATA_DIR / 'all_signals_pro.json')
+        # 使用配置文件中的路径
+        signal_file = config.NGINX_WWW_DIR / 'all_signals_pro.json'
+        if not signal_file.exists():
+            signal_file = config.DATA_DIR / 'all_signals_pro.json'
             
         items = []
-        if os.path.exists(signal_file):
+        if signal_file.exists():
             with open(signal_file, 'r', encoding='utf-8') as f:
                 items = json.load(f)
                 

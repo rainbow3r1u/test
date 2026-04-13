@@ -751,6 +751,17 @@ accountSocket.on('account_update', function(res) {
     }
 });
 
+accountSocket.on('scan_error', function(res) {
+    alert("⚠️ 后台扫描出现异常:\n" + res.msg);
+    var btn = document.getElementById('scanBtn');
+    if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = '基于以上参数触发扫描';
+        btn.style.opacity = '1';
+    }
+    isScanning = false;
+});
+
 function loadHistory() {
     fetch('/api/history/six-hour?days=7')
         .then(function(r) { return r.json(); })

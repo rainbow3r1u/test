@@ -17,23 +17,26 @@ logger = get_logger('database')
 
 
 class Database:
-    _conn: Optional[sqlite3.Connection] = None
+    _local = threading.local()
     _db_lock = threading.Lock()
 
     @classmethod
     def _get_connection(cls) -> sqlite3.Connection:
-        with cls._db_lock:
-            if cls._conn is None:
-                db_path = Path(config.DB_PATH)
-                db_path.parent.mkdir(parents=True, exist_ok=True)
-                cls._conn = sqlite3.connect(str(db_path), check_same_thread=False)
-                cls._conn.row_factory = sqlite3.Row
-                cls._init_tables()
-        return cls._conn
+        if not hasattr(cls._local, 'conn') or cls._local.conn is None:
+            db_path = Path(config.DB_PATH)
+            db_path.parent.mkdir(parents=True, exist_ok=True)
+            # 移除 check_same_thread=False，为每个线程创建独立连接，确保线程安全
+            conn = sqlite3.connect(str(db_path))
+            conn.row_factory = sqlite3.Row
+            cls._local.conn = conn
+            
+            with cls._db_lock:
+                cls._init_tables(conn)
+                
+        return cls._local.conn
 
     @classmethod
-    def _init_tables(cls):
-        conn = cls._conn
+    def _init_tables(cls, conn: sqlite3.Connection):
         conn.execute('''
             CREATE TABLE IF NOT EXISTS signals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

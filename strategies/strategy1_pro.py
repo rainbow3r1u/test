@@ -220,10 +220,10 @@ class Strategy1Pro(BaseStrategy):
                         'startTime': obs_bar['t'],
                         'endTime': obs_bar['t'],
                         'endHour': row['timestamp'].hour,
-                        'hrs': 1, # 仅作占位
+                        'hrs': consecutive_count if consecutive_count > 0 else 1, # 保留已有连涨进度
                         'vol': round(row['quote_volume']/1e6, 2),
                         'gain': round(single_gain*100, 2),
-                        'bars': [obs_bar],
+                        'bars': bars_info + [obs_bar] if bars_info else [obs_bar], # 保留历史K线路径
                         'is_watchlist': True,
                         'watch_reason': f"单根涨幅 {single_gain*100:.2f}% > {max_single_gain*100:.2f}%"
                     })
@@ -373,13 +373,8 @@ class Strategy1Pro(BaseStrategy):
         self.logger.info(f"找到 {len(items)} 个符合条件的币")
         return report
 
-
-from core.data_loader import DataLoader
-from core.chart_generator import ChartGenerator
-from core.database import Database; from models.signal import StrategyReport
-
-
 def run():
+    from core.chart_generator import ChartGenerator
     strategy = Strategy1Pro()
     report = strategy.run(generate_charts=False, save_to_db=False)
     
@@ -391,7 +386,6 @@ def run():
             print(f"成功生成 {success} 个图表缓存")
     
     return report
-
 
 if __name__ == '__main__':
     run()

@@ -319,13 +319,8 @@ class Strategy1(BaseStrategy):
         self.logger.info(f"找到 {len(items)} 个符合条件的币")
         return report
 
-
-from core.data_loader import DataLoader
-from core.chart_generator import ChartGenerator
-from core.database import Database; from models.signal import StrategyReport
-
-
 def run():
+    from core.chart_generator import ChartGenerator
     strategy = Strategy1()
     report = strategy.run(generate_charts=False, save_to_db=False)
     
@@ -337,7 +332,6 @@ def run():
             print(f"成功生成 {success} 个图表缓存")
     
     return report
-
 
 if __name__ == '__main__':
     run()
