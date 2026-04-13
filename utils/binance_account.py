@@ -25,6 +25,7 @@ class BinanceAccount:
     _cache: Optional[Dict] = None
     _cache_time: Optional[float] = None
     _cache_ttl: int = 5
+    _banned_until: float = 0  # 全局熔断时间戳
     
     @classmethod
     def _generate_signature(cls, params: dict, timestamp: int) -> str:
@@ -43,6 +44,11 @@ class BinanceAccount:
     
     @classmethod
     def _request(cls, endpoint: str, params: dict = None) -> Optional[dict]:
+        # 检查是否在熔断期
+        if time.time() < cls._banned_until:
+            logger.debug(f"IP 处于熔断期，拦截 REST 请求: {endpoint}")
+            return None
+            
         timestamp = int(time.time() * 1000)
         
         if params is None:
@@ -59,6 +65,14 @@ class BinanceAccount:
             resp = requests.get(url, headers=headers, timeout=10)
             resp.raise_for_status()
             return resp.json()
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code in [418, 429]:
+                retry_after = int(e.response.headers.get('Retry-After', 300))
+                cls._banned_until = time.time() + retry_after
+                logger.error(f"🚨 [REST API] 触发币安封禁 ({e.response.status_code})，全局熔断 {retry_after} 秒！")
+            else:
+                logger.error(f"请求失败 {endpoint}: {e}")
+            return None
         except Exception as e:
             logger.error(f"请求失败 {endpoint}: {e}")
             return None
@@ -212,12 +226,26 @@ class BinanceAccountWS:
     
     @classmethod
     def _get_listen_key(cls) -> Optional[str]:
+        # 如果还在全局熔断期内，直接拒绝请求
+        if time.time() < BinanceAccount._banned_until:
+            remaining = int(BinanceAccount._banned_until - time.time())
+            logger.warning(f"IP 处于熔断期，拦截 listenKey 请求，还需等待 {remaining} 秒")
+            return 'BANNED'
+            
         url = f"{cls.REST_API}/fapi/v1/listenKey"
         headers = {'X-MBX-APIKEY': config.BINANCE_API_KEY}
         try:
             resp = requests.post(url, headers=headers, timeout=10)
             resp.raise_for_status()
             return resp.json().get('listenKey')
+        except requests.exceptions.HTTPError as e:
+            if e.response is not None and e.response.status_code in [418, 429]:
+                retry_after = int(e.response.headers.get('Retry-After', 300))
+                BinanceAccount._banned_until = time.time() + retry_after
+                logger.error(f"🚨 [WS API] 获取 listenKey 触发币安封禁 ({e.response.status_code})，全局熔断 {retry_after} 秒！")
+                return 'BANNED'
+            logger.error(f"获取 listenKey 失败: {e}")
+            return None
         except Exception as e:
             logger.error(f"获取 listenKey 失败: {e}")
             return None
@@ -235,14 +263,24 @@ class BinanceAccountWS:
     
     @classmethod
     def _run_ws(cls):
+        retry_delay = 30
+        
         while cls._running:
             try:
                 listen_key = cls._get_listen_key()
-                if not listen_key:
+                
+                if listen_key == 'BANNED':
+                    logger.warning(f"由于 IP 封禁，WebSocket 线程深度休眠 {retry_delay} 秒...")
+                    time.sleep(retry_delay)
+                    retry_delay = min(retry_delay * 2, 3600)  # 指数退避，最大1小时
+                    continue
+                elif not listen_key:
                     logger.error("无法获取 listenKey，30秒后重试")
                     time.sleep(30)
                     continue
                 
+                # 成功获取，重置延迟
+                retry_delay = 30
                 cls._listen_key = listen_key
                 ws_url = cls.WS_URL + listen_key
                 
