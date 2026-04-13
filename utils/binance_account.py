@@ -338,6 +338,13 @@ class BinanceAccountWS:
             
             logger.debug(f"账户更新: 权益={cls._account_data.get('balance', {}).get('balance', 0):.2f}, 持仓={len(pos_list)}")
             
+            try:
+                from utils.websocket_manager import ws_manager
+                if ws_manager.socketio:
+                    ws_manager.socketio.emit('account_update', {'code': 0, 'data': cls._account_data})
+            except Exception as emit_err:
+                logger.error(f"推送账户更新失败: {emit_err}")
+                
         except Exception as e:
             logger.error(f"处理账户更新失败: {e}")
     

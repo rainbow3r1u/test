@@ -477,48 +477,51 @@ function updateTime() {
     if (el) el.textContent = '北京时间: ' + fmtBJ(new Date());
 }
 
+function renderAccountInfo(info) {
+    var balance = info.balance || {};
+    var positions = info.positions || [];
+    var totalPnl = info.totalPnl || 0;
+    
+    myPositions = positions.map(function(p) { return p.symbol; });
+    
+    var totalEquity = (balance.balance || 0) + (balance.crossUnPnl || 0);
+    document.getElementById('accountBalance').textContent = totalEquity.toFixed(2) + ' USDT';
+    document.getElementById('availableBalance').textContent = (balance.availableBalance || 0).toFixed(2) + ' USDT';
+    
+    var pnlEl = document.getElementById('totalPnl');
+    pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2) + ' USDT';
+    pnlEl.className = 'account-value ' + (totalPnl >= 0 ? 'positive' : 'negative');
+    
+    var countEl = document.getElementById('positionCount');
+    if (positions.length > 0) {
+        countEl.style.display = 'inline';
+        countEl.textContent = positions.length;
+        
+        var posHtml = '';
+        for (var i = 0; i < positions.length; i++) {
+            var p = positions[i];
+            var pnlClass = p.unRealizedProfit >= 0 ? 'positive' : 'negative';
+            posHtml += '<span style="margin-right:10px;font-size:12px;">';
+            posHtml += '<span class="sym-link" onclick="openChartModal(\'' + p.symbol + '\')" title="点击查看静态图表">' + p.symbol + '</span> ';
+            posHtml += '<button class="realtime-btn" onclick="openRealtimeChart(\'' + p.symbol + '\')" title="查看实时行情">实时</button> ';
+            posHtml += p.direction + ' ';
+            posHtml += '<span class="' + pnlClass + '">' + (p.unRealizedProfit >= 0 ? '+' : '') + p.unRealizedProfit.toFixed(2) + ' (' + p.roi.toFixed(2) + '%)</span>';
+            posHtml += '</span>';
+        }
+        document.getElementById('positions').innerHTML = posHtml;
+        document.getElementById('positionBar').style.display = 'flex';
+    } else {
+        countEl.style.display = 'none';
+        document.getElementById('positionBar').style.display = 'none';
+    }
+}
+
 function loadAccountInfo() {
     fetch('/api/account')
         .then(function(r) { return r.json(); })
         .then(function(data) {
             if (data.code === 0 && data.data) {
-                var info = data.data;
-                var balance = info.balance || {};
-                var positions = info.positions || [];
-                var totalPnl = info.totalPnl || 0;
-                
-                myPositions = positions.map(function(p) { return p.symbol; });
-                
-                var totalEquity = (balance.balance || 0) + (balance.crossUnPnl || 0);
-                document.getElementById('accountBalance').textContent = totalEquity.toFixed(2) + ' USDT';
-                document.getElementById('availableBalance').textContent = (balance.availableBalance || 0).toFixed(2) + ' USDT';
-                
-                var pnlEl = document.getElementById('totalPnl');
-                pnlEl.textContent = (totalPnl >= 0 ? '+' : '') + totalPnl.toFixed(2) + ' USDT';
-                pnlEl.className = 'account-value ' + (totalPnl >= 0 ? 'positive' : 'negative');
-                
-                var countEl = document.getElementById('positionCount');
-                if (positions.length > 0) {
-                    countEl.style.display = 'inline';
-                    countEl.textContent = positions.length;
-                    
-                    var posHtml = '';
-                    for (var i = 0; i < positions.length; i++) {
-                        var p = positions[i];
-                        var pnlClass = p.unRealizedProfit >= 0 ? 'positive' : 'negative';
-                        posHtml += '<span style="margin-right:10px;font-size:12px;">';
-                        posHtml += '<span class="sym-link" onclick="openChartModal(\'' + p.symbol + '\')" title="点击查看静态图表">' + p.symbol + '</span> ';
-                        posHtml += '<button class="realtime-btn" onclick="openRealtimeChart(\'' + p.symbol + '\')" title="查看实时行情">实时</button> ';
-                        posHtml += p.direction + ' ';
-                        posHtml += '<span class="' + pnlClass + '">' + (p.unRealizedProfit >= 0 ? '+' : '') + p.unRealizedProfit.toFixed(2) + ' (' + p.roi.toFixed(2) + '%)</span>';
-                        posHtml += '</span>';
-                    }
-                    document.getElementById('positions').innerHTML = posHtml;
-                    document.getElementById('positionBar').style.display = 'flex';
-                } else {
-                    countEl.style.display = 'none';
-                    document.getElementById('positionBar').style.display = 'none';
-                }
+                renderAccountInfo(data.data);
             }
         })
         .catch(function() {});
@@ -740,7 +743,13 @@ updateTime();
 setInterval(updateTime, 1000);
 setInterval(updateCountdown, 1000);
 loadAccountInfo();
-setInterval(loadAccountInfo, 5000);
+
+var accountSocket = io('/', { transports: ['websocket', 'polling'] });
+accountSocket.on('account_update', function(res) {
+    if (res.code === 0 && res.data) {
+        renderAccountInfo(res.data);
+    }
+});
 
 function loadHistory() {
     fetch('/api/history/six-hour?days=7')
