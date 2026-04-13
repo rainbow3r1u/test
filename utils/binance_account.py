@@ -10,6 +10,7 @@ import requests
 import json
 import threading
 import websocket
+import datetime
 from typing import Dict, List, Optional
 import sys
 from pathlib import Path
@@ -237,6 +238,15 @@ class BinanceAccountWS:
         headers = {'X-MBX-APIKEY': config.BINANCE_API_KEY}
         try:
             resp = requests.post(url, headers=headers, timeout=10)
+            
+            # 读取 Retry-After 响应头
+            if resp.status_code == 418:
+                wait_sec = int(resp.headers.get('Retry-After', 300))
+                _banned_until = time.time() + wait_sec
+                _retry_delay = min(_retry_delay * 2, 3600)
+                logger.warning(f"获取listenKey触发418，封锁至 {datetime.datetime.fromtimestamp(_banned_until)}")
+                return None
+            
             resp.raise_for_status()
             return resp.json().get('listenKey')
         except requests.exceptions.HTTPError as e:
@@ -263,6 +273,16 @@ class BinanceAccountWS:
         headers = {'X-MBX-APIKEY': config.BINANCE_API_KEY}
         try:
             resp = requests.put(url, headers=headers, timeout=10)
+            
+            # 418处理
+            if resp.status_code == 418:
+                logger.warning("Keepalive 触发418，进入熔断休眠")
+                return False
+            
+            if not resp.ok:
+                logger.warning(f"Keepalive HTTP错误: {resp.status_code}")
+                return False
+            
             resp.raise_for_status()
             logger.debug("listenKey keepalive 成功")
             return 'SUCCESS'

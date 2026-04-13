@@ -6,6 +6,9 @@ import io
 import time
 import pandas as pd
 from datetime import datetime, timezone
+
+_BANNED_UNTIL = 0  # 全局熔断截止时间戳（秒）
+_BANNED_RETRY_DELAY = 30  # 退避间隔秒数
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -35,11 +38,24 @@ class BinanceKlineCollector:
         self.concurrent_workers = 10
 
     def _api_request(self, path: str, params: Dict = None) -> Any:
-        global request_count
+        global request_count, _BANNED_UNTIL, _BANNED_RETRY_DELAY
         url = f"{self.api_base}{path}"
         for attempt in range(self.max_retries):
+            # 熔断检查
+            if time.time() < _BANNED_UNTIL:
+                time.sleep(_BANNED_RETRY_DELAY)
+            
             try:
                 resp = requests.get(url, params=params, timeout=self.timeout)
+                
+                # 418熔断判断
+                if resp.status_code == 418:
+                    wait_sec = int(resp.headers.get("Retry-After", 300))
+                    _BANNED_UNTIL = time.time() + wait_sec
+                    _BANNED_RETRY_DELAY = min(_BANNED_RETRY_DELAY * 2, 3600)
+                    logger.error(f"触发418熔断，封锁至 {datetime.fromtimestamp(_BANNED_UNTIL)}，{wait_sec}秒后重试")
+                    break
+                
                 resp.raise_for_status()
                 with request_lock:
                     request_count += 1
