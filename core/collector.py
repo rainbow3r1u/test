@@ -197,3 +197,6 @@ class BinanceKlineCollector:
 def run_collector() -> bool:
     collector = BinanceKlineCollector()
     return collector.run()
+
+if __name__ == '__main__':
+    run_collector()
