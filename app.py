@@ -46,9 +46,6 @@ app.static_folder = str(config.STATIC_DIR)
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-from utils.websocket_manager import ws_manager
-ws_manager.set_socketio(socketio)
-
 # 简单的内存缓存机制，避免频繁读取巨型JSON
 _report_cache = {}
 _report_mtime = {}
@@ -326,45 +323,6 @@ def api_account():
     except Exception as e:
         logger.error(f"获取账户信息失败: {e}")
         return jsonify({'code': -1, 'msg': str(e)})
-
-
-@socketio.on('connect', namespace='/realtime')
-def handle_connect():
-    logger.info(f"客户端连接: {request.sid}")
-    emit('connected', {'status': 'ok'})
-
-
-@socketio.on('disconnect', namespace='/realtime')
-def handle_disconnect():
-    logger.info(f"客户端断开: {request.sid}")
-
-
-@socketio.on('subscribe_positions', namespace='/realtime')
-def handle_subscribe_positions(data):
-    symbols = data.get('symbols', [])
-    if symbols:
-        ws_manager.update_subscriptions(symbols)
-        logger.info(f"订阅持仓币种: {symbols}")
-        emit('subscribed', {'symbols': symbols, 'count': len(symbols)})
-
-
-@socketio.on('unsubscribe_all', namespace='/realtime')
-def handle_unsubscribe_all():
-    ws_manager.subscriptions.clear()
-    logger.info("取消所有订阅")
-    emit('unsubscribed', {'status': 'ok'})
-
-
-@app.route('/api/realtime/status')
-def realtime_status():
-    return jsonify({
-        'code': 0,
-        'data': {
-            'subscriptions': list(ws_manager.subscriptions),
-            'count': len(ws_manager.subscriptions),
-            'running': ws_manager.running
-        }
-    })
 
 
 @app.route('/api/history/six-hour')
