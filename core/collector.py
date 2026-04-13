@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime, timezone
 
 _BANNED_UNTIL = 0  # 全局熔断截止时间戳（秒）
-_BANNED_RETRY_DELAY = 30  # 退避间隔秒数
+_BANNED_RETRY_DELAY = 0.02  # 初始退避间隔20ms，418后指数增长
 from typing import List, Dict, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import threading
@@ -108,10 +108,11 @@ class BinanceKlineCollector:
         return rows
 
     def _fetch_klines_task(self, symbol: str, idx: int, total: int, delay: float = 0.02):
+        global _BANNED_RETRY_DELAY
         rows = self.fetch_klines(symbol)
         if idx % 50 == 0 or idx == total:
             logger.info(f"进度: {idx}/{total}")
-        time.sleep(delay)
+        time.sleep(_BANNED_RETRY_DELAY)
         return symbol, rows
 
     def _upload_to_cos(self, local_file: str, cos_key: str) -> bool:
