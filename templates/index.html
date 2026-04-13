@@ -458,7 +458,7 @@ function copyText(text, toastId) {
 }
 
 var currentView = "{{ current_view }}";
-var allSignals = {{ s1_data | tojson | safe }};
+var allSignals = {{ s1_pro_data | tojson | safe if current_view == 'strategy1_pro' else s1_data | tojson | safe }};
 var checkStats = {};
 var checkTime = '';
 var nextCheckTime = '';
