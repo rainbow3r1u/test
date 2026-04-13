@@ -141,8 +141,16 @@ def index():
         })
     
     s1_data = []
+    s1_pro_data = []  # 默认空
+    
     if view == 'strategy1_pro':
         s1_file = '/var/www/all_signals_pro.json'
+        if os.path.exists(s1_file):
+            try:
+                with open(s1_file, 'r', encoding='utf-8') as f:
+                    s1_pro_data = json.load(f)
+            except:
+                pass
     elif view == 'arc_bottom':
         s1_file = '/var/www/all_signals_arc.json'
     else:
@@ -163,7 +171,7 @@ def index():
         except:
             pass
     
-    return render_template('index.html', strategies=strategies, s1_data=s1_data, current_view=view)
+    return render_template('index.html', strategies=strategies, s1_data=s1_data, s1_pro_data=s1_pro_data, current_view=view)
 
 
 @app.route('/report/<strategy>')
