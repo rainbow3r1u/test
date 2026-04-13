@@ -371,7 +371,6 @@
                 <span id="chartModalSymbol" style="cursor:pointer; color:#58a6ff; user-select:none; -webkit-user-select:none; padding:4px 0;" title="点击复制" onclick="copyText(this.innerText, 'chartCopyToast')"></span>
                 <span id="chartModalSuffix"> 行情图</span>
                 <span id="chartCopyToast" style="display:none; font-size:12px; color:#7ee787; margin-left:10px; font-weight:normal;">已复制!</span>
-                <button onclick="updateChartLive()" style="margin-left: 15px; padding: 4px 10px; background-color: #238636; color: white; border: 1px solid rgba(240,246,252,0.1); border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">更新最新行情</button>
             </div>
             <button class="modal-close" onclick="closeChartModal()">&times;</button>
         </div>
@@ -935,18 +934,6 @@ function openChartModal(symbol) {
     if (scanCutoffHour) {
         url += '&cutoff=' + encodeURIComponent(scanCutoffHour);
     }
-    img.src = url;
-}
-
-function updateChartLive() {
-    var symbol = document.getElementById('chartModalSymbol').textContent;
-    var img = document.getElementById('chartImage');
-    var loading = document.getElementById('chartLoading');
-    
-    img.style.display = 'none';
-    loading.style.display = 'block';
-    
-    var url = '/triple-chart/' + symbol + '?live=1&t=' + Date.now();
     img.src = url;
 }
 
