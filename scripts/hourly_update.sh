@@ -27,7 +27,7 @@ import shutil
 from core.chart_generator import ChartGenerator
 
 # 更新strategy1
-files = glob.glob('output/strategy1_*.json')
+files = [f for f in glob.glob('output/strategy1_*.json') if 'strategy1_pro' not in f]
 if files:
     latest = max(files)
     with open(latest, 'r') as f:
