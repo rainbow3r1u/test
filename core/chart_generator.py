@@ -227,9 +227,89 @@ class ChartGenerator:
 
     @classmethod
     def generate_triple_chart_live(cls, symbol: str) -> Optional[bytes]:
-        """彻底禁用直连币安的图表请求，防止触发频率限制封禁 IP"""
-        logger.warning(f"禁止调用 generate_triple_chart_live ({symbol}) - 为防止币安 API 封禁，此功能已被弃用。")
-        return None
+        """
+        生成实时三合一图表 (1H/4H/D)
+        通过合并 COS 历史数据和币安实时数据，在减少 API 调用的同时获取最新 K 线
+        """
+        from core.data_loader import DataLoader
+        
+        cache_dir = config.CHARTS_DIR
+        cache_file = cache_dir / f"{symbol}_triple_live.png"
+        
+        # 1. 实时图表缓存 2 分钟，防止狂点按钮触发 API 封禁
+        if cache_file.exists():
+            cache_age = (time.time() - cache_file.stat().st_mtime) / 60
+            if cache_age < 2:
+                logger.info(f"返回缓存的实时图表: {symbol} (age: {cache_age:.1f}m)")
+                with open(cache_file, 'rb') as f:
+                    return f.read()
+
+        # 2. 获取 COS 历史数据 (1H)
+        df_symbol = DataLoader.get_symbol_data(symbol, use_cache=True)
+        
+        # 3. 从币安获取最新 K 线 (每个周期仅 1 个请求，limit=3 以覆盖延迟并获取当前没走完的 K 线)
+        df_1h_live = cls._fetch_ohlcv(symbol, '1h', limit=3, filter_incomplete=False)
+        df_4h_live = cls._fetch_ohlcv(symbol, '4h', limit=3, filter_incomplete=False)
+        df_1d_live = cls._fetch_ohlcv(symbol, '1d', limit=3, filter_incomplete=False)
+
+        def merge_data(df_hist, df_live):
+            if df_live is None: return df_hist
+            
+            # 统一时间格式：Binance API 返回 ms 整数，需转为 datetime 以匹配 COS
+            df_live_copy = df_live.copy()
+            df_live_copy['timestamp'] = pd.to_datetime(df_live_copy['timestamp'], unit='ms')
+            
+            if df_hist is None or len(df_hist) == 0:
+                return df_live_copy
+                
+            # 合并、去重(以最新为准)、排序
+            combined = pd.concat([df_hist, df_live_copy]).drop_duplicates(subset=['timestamp'], keep='last').sort_values('timestamp')
+            return combined
+
+        # 4. 准备绘图数据
+        if df_symbol is None or len(df_symbol) == 0:
+            # Fallback: 如果 COS 没数据，直接从币安拉取适量历史数据
+            df_1h = cls._fetch_ohlcv(symbol, '1h', limit=100, filter_incomplete=False)
+            df_4h = cls._fetch_ohlcv(symbol, '4h', limit=100, filter_incomplete=False)
+            df_1d = cls._fetch_ohlcv(symbol, '1d', limit=100, filter_incomplete=False)
+            
+            for df in [df_1h, df_4h, df_1d]:
+                if df is not None: df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        else:
+            # 正常路径：取 COS 基础数据并合并币安实时数据
+            df_1h_hist = df_symbol.tail(720).copy() # 取 30 天 1H 数据
+            df_4h_hist = cls._aggregate_timeframe(df_1h_hist, '4h')
+            df_1d_hist = cls._aggregate_timeframe(df_1h_hist, '1d')
+            
+            df_1h = merge_data(df_1h_hist, df_1h_live)
+            df_4h = merge_data(df_4h_hist, df_4h_live)
+            df_1d = merge_data(df_1d_hist, df_1d_live)
+
+        if df_1h is None and df_4h is None and df_1d is None:
+            return None
+
+        # 5. 绘图
+        plt.style.use('dark_background')
+        fig = plt.figure(figsize=(18, 14))
+        gs = fig.add_gridspec(3, 1, hspace=0.3)
+        ax1, ax2, ax3 = fig.add_subplot(gs[0]), fig.add_subplot(gs[1]), fig.add_subplot(gs[2])
+        fig.patch.set_facecolor('#1a1a1a')
+
+        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (Live)', linewidth=1, timeframe='1h')
+        cls._draw_candlestick(ax2, df_4h, f'{symbol} - 4H (Live)', linewidth=1.5, timeframe='4h')
+        cls._draw_candlestick(ax3, df_1d, f'{symbol} - Daily (Live)', linewidth=2, timeframe='1d')
+
+        plt.tight_layout(pad=1.5)
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png', dpi=120, facecolor='#1a1a1a', bbox_inches='tight', pad_inches=0.1)
+        img_data = buf.getvalue()
+        plt.close(fig)
+
+        # 6. 缓存并返回
+        cache_dir.mkdir(parents=True, exist_ok=True)
+        with open(cache_file, 'wb') as f:
+            f.write(img_data)
+        return img_data
 
     @classmethod
     def generate_triple_chart(cls, symbol: str) -> Optional[bytes]:
