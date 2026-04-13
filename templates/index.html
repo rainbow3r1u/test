@@ -745,31 +745,7 @@ setInterval(updateCountdown, 1000);
 loadAccountInfo();
 
 var lastAccountUpdateTime = Date.now();
-setInterval(function() {
-    // 智能兜底机制：如果超过10秒没收到WebSocket推送，则主动拉取一次
-    if (Date.now() - lastAccountUpdateTime > 10000) {
-        loadAccountInfo();
-    }
-}, 5000);
-
-var accountSocket = io('/', { transports: ['websocket', 'polling'] });
-accountSocket.on('account_update', function(res) {
-    if (res.code === 0 && res.data) {
-        lastAccountUpdateTime = Date.now();
-        renderAccountInfo(res.data);
-    }
-});
-
-accountSocket.on('scan_error', function(res) {
-    alert("⚠️ 后台扫描出现异常:\n" + res.msg);
-    var btn = document.getElementById('scanBtn');
-    if (btn) {
-        btn.disabled = false;
-        btn.innerHTML = '基于以上参数触发扫描';
-        btn.style.opacity = '1';
-    }
-    isScanning = false;
-});
+setInterval(loadAccountInfo, 5000);
 
 function loadHistory() {
     fetch('/api/history/six-hour?days=7')

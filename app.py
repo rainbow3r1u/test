@@ -48,9 +48,6 @@ socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 from utils.websocket_manager import ws_manager
 ws_manager.set_socketio(socketio)
-from utils.binance_account import BinanceAccountWS
-BinanceAccountWS.start()
-
 
 # 简单的内存缓存机制，避免频繁读取巨型JSON
 _report_cache = {}
@@ -321,14 +318,10 @@ def preload(symbol):
 
 @app.route('/api/account')
 def api_account():
-    from utils.binance_account import BinanceAccountWS, BinanceAccount
+    from utils.binance_account import BinanceAccount
     
     try:
-        if BinanceAccountWS.is_connected():
-            info = BinanceAccountWS.get_account_info()
-        else:
-            BinanceAccount.clear_cache()
-            info = BinanceAccount.get_account_info()
+        info = BinanceAccount.get_account_info()
         return jsonify({'code': 0, 'data': info})
     except Exception as e:
         logger.error(f"获取账户信息失败: {e}")
@@ -794,14 +787,5 @@ def api_scanner_coins():
 
 
 if __name__ == '__main__':
-    # 生产环境使用 gunicorn/eventlet 启动
-    # 开发环境使用: python3 app.py
-    import sys
-    if 'gunicorn' not in sys.modules and 'eventlet' not in sys.modules:
-        logger.warning("建议使用 gunicorn 或 eventlet 启动生产环境服务")
-        logger.warning("示例: gunicorn -k eventlet -w 1 -b 0.0.0.0:5002 app:app")
-    
-    from utils.binance_account import BinanceAccountWS
-    BinanceAccountWS.start()
     logger.info(f"启动Web服务: http://{config.WEB_HOST}:{config.WEB_PORT}")
     socketio.run(app, host=config.WEB_HOST, port=config.WEB_PORT, debug=False, allow_unsafe_werkzeug=True)
