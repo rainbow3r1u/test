@@ -78,7 +78,7 @@ def get_latest_report(strategy_name: str) -> Dict[str, Any]:
 def get_all_reports() -> List[Dict[str, Any]]:
     # 复用 get_latest_report 的缓存，避免读取和遍历所有历史文件
     reports = []
-    strategies = ['strategy1', 'strategy1_pro', 'arc_bottom']
+    strategies = ['strategy1', 'strategy1_pro', 'arc_bottom', 'surge_filter']
     for st in strategies:
         data = get_latest_report(st)
         if data:
@@ -205,21 +205,23 @@ def health():
 
 @app.route('/api/<strategy>')
 def api_strategy(strategy):
-    if strategy not in ['strategy1', 'strategy1_pro', 'arc_bottom']:
+    if strategy not in ['strategy1', 'strategy1_pro', 'arc_bottom', 'surge_filter']:
         return jsonify({'code': 1, 'msg': '无效的策略'})
         
     try:
         file_map = {
             'strategy1': '/var/www/all_signals.json',
             'strategy1_pro': '/var/www/all_signals_pro.json',
-            'arc_bottom': '/var/www/all_signals_arc.json'
+            'arc_bottom': '/var/www/all_signals_arc.json',
+            'surge_filter': '/var/www/all_signals_surge.json'
         }
         signal_file = file_map.get(strategy)
         if not os.path.exists(signal_file):
             fallback_map = {
                 'strategy1': 'all_signals.json',
                 'strategy1_pro': 'all_signals_pro.json',
-                'arc_bottom': 'all_signals_arc.json'
+                'arc_bottom': 'all_signals_arc.json',
+                'surge_filter': 'all_signals_surge.json'
             }
             signal_file = str(config.DATA_DIR / fallback_map.get(strategy))
 
@@ -241,6 +243,18 @@ def api_signals(strategy):
         return jsonify({'code': 0, 'data': signals, 'count': len(signals)})
     except Exception as e:
         logger.error(f"获取信号失败: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
+
+@app.route('/api/surge_filter')
+def api_surge_filter():
+    from strategies.surge_filter import SurgeFilterStrategy
+    try:
+        s = SurgeFilterStrategy()
+        result = s.run()
+        return jsonify({'code': 0, 'data': result})
+    except Exception as e:
+        logger.error(f"surge_filter策略执行失败: {e}")
         return jsonify({'code': 1, 'msg': str(e)})
 
 

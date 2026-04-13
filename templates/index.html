@@ -156,6 +156,7 @@
     <a class="tab {% if current_view == 'strategy1' %}active{% endif %}" href="/?view=strategy1">稳步抬升</a>
     <a class="tab {% if current_view == 'strategy1_pro' %}active{% endif %}" href="/?view=strategy1_pro">稳步抬升 PRO <span style="font-size:10px;background:#f0883e;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
     <a class="tab {% if current_view == 'arc_bottom' %}active{% endif %}" href="/?view=arc_bottom">圆弧底突破 <span style="font-size:10px;background:#d29922;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
+    <a class="tab {% if current_view == 'surge_filter' %}active{% endif %}" href="/?view=surge_filter">1h涨幅3-10% <span style="font-size:10px;background:#a371f7;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
     <a class="tab" href="/scanner">Scanner <span style="font-size:10px;background:#58a6ff;color:#fff;padding:2px 4px;border-radius:4px;margin-left:4px;">NEW</span></a>
     {% for s in strategies %}
     <a class="tab {% if current_view == s.name %}active{% endif %}" href="/?view={{s.name}}">{{s.title or s.name}}</a>
@@ -295,6 +296,58 @@
         <div id="debugArcResult" style="margin-top:10px;font-size:12px;color:#8b949e;">输入symbol后点击调试</div>
     </div>
 </div>
+{% endif %}
+
+<!-- 1h涨幅3-10%筛选视图 -->
+{% if current_view == 'surge_filter' %}
+<div class="report-card" style="margin:14px 20px 12px;">
+    <div class="report-title">1小时涨幅3-10%筛选</div>
+    <div class="report-meta">筛选条件: 1h涨幅3-10% + 24h成交额&lt;2000万USDT</div>
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th>币种</th>
+                    <th>价格</th>
+                    <th>1h涨幅</th>
+                    <th>24h成交额</th>
+                    <th>时间</th>
+                </tr>
+            </thead>
+            <tbody id="surgeFilterBody">
+                <tr><td colspan="5" style="text-align:center;color:#8b949e;">加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+<script>
+fetch('/api/surge_filter')
+    .then(r => r.json())
+    .then(res => {
+        if (res.code === 0) {
+            const items = res.data.items || [];
+            const tbody = document.getElementById('surgeFilterBody');
+            if (items.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#8b949e;">暂无符合条件的币种</td></tr>';
+            } else {
+                tbody.innerHTML = items.map(item => `
+                    <tr>
+                        <td><a class="sym-link" href="https://www.binance.com/zh-CN/futures/${item.symbol}" target="_blank">${item.symbol}</a></td>
+                        <td>${item.price}</td>
+                        <td class="positive">${item.gain_1h}%</td>
+                        <td>${(item.vol_24h / 1000000).toFixed(2)}M</td>
+                        <td>${item.time}</td>
+                    </tr>
+                `).join('');
+            }
+        } else {
+            document.getElementById('surgeFilterBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#f85149;">加载失败: ' + res.msg + '</td></tr>';
+        }
+    })
+    .catch(err => {
+        document.getElementById('surgeFilterBody').innerHTML = '<tr><td colspan="5" style="text-align:center;color:#f85149;">请求失败</td></tr>';
+    });
+</script>
 {% endif %}
 
 <!-- 各策略视图 -->
