@@ -107,7 +107,7 @@ class BinanceKlineCollector:
             })
         return rows
 
-    def _fetch_klines_task(self, symbol: str, idx: int, total: int, delay: float = 0.15):
+    def _fetch_klines_task(self, symbol: str, idx: int, total: int, delay: float = 0.4):
         global _BANNED_RETRY_DELAY
         rows = self.fetch_klines(symbol)
         if idx % 50 == 0 or idx == total:
