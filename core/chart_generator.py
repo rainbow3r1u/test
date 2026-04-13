@@ -227,32 +227,9 @@ class ChartGenerator:
 
     @classmethod
     def generate_triple_chart_live(cls, symbol: str) -> Optional[bytes]:
-        """通过 REST API 获取最新行情生成图表"""
-        df_1h = cls._fetch_ohlcv(symbol, '1h', 60, filter_incomplete=False)
-        df_4h = cls._fetch_ohlcv(symbol, '4h', 40, filter_incomplete=False)
-        df_1d = cls._fetch_ohlcv(symbol, '1d', 30, filter_incomplete=False)
-
-        if df_1h is None or df_4h is None or df_1d is None:
-            return None
-
-        plt.style.use('dark_background')
-        fig = plt.figure(figsize=(18, 14))
-        gs = fig.add_gridspec(3, 1, hspace=0.3)
-        ax1 = fig.add_subplot(gs[0])
-        ax2 = fig.add_subplot(gs[1])
-        ax3 = fig.add_subplot(gs[2])
-        fig.patch.set_facecolor('#1a1a1a')
-
-        cls._draw_candlestick(ax1, df_1h, f'{symbol} - 1H (实时)', linewidth=1, timeframe='1h')
-        cls._draw_candlestick(ax2, df_4h, f'{symbol} - 4H (实时)', linewidth=1.5, timeframe='4h')
-        cls._draw_candlestick(ax3, df_1d, f'{symbol} - Daily (实时)', linewidth=2, timeframe='1d')
-
-        plt.tight_layout(pad=1.5)
-        buf = io.BytesIO()
-        plt.savefig(buf, format='png', dpi=120, facecolor='#1a1a1a', bbox_inches='tight', pad_inches=0.1)
-        buf.seek(0)
-        plt.close(fig)
-        return buf.read()
+        """彻底禁用直连币安的图表请求，防止触发频率限制封禁 IP"""
+        logger.warning(f"禁止调用 generate_triple_chart_live ({symbol}) - 为防止币安 API 封禁，此功能已被弃用。")
+        return None
 
     @classmethod
     def generate_triple_chart(cls, symbol: str) -> Optional[bytes]:

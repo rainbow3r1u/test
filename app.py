@@ -515,7 +515,7 @@ def api_strategy1_debug():
         report_source = f'api/report/{strategy_id}'
         report_time = report_data.get('timestamp', '')
         
-        all_symbols_bars = report_data.get('metadata', {}).get('all_symbols_bars', [])
+        all_symbols_bars = report_data.get('summary', {}).get('all_symbols_bars', [])
         target = None
         for item in all_symbols_bars:
             if item['symbol'] == symbol:
@@ -727,30 +727,48 @@ def scanner_page():
 @app.route('/api/scanner/coins')
 def api_scanner_coins():
     try:
-        report = get_latest_report('strategy1_pro')
-        if not report:
+        signal_file = '/var/www/all_signals_pro.json'
+        if not os.path.exists(signal_file):
+            signal_file = str(config.DATA_DIR / 'all_signals_pro.json')
+            
+        items = []
+        if os.path.exists(signal_file):
+            with open(signal_file, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+                
+        if not items:
             return jsonify({'code': 0, 'coins': [], 'count': 0})
-        
-        report_data = report.get('data', report)
-        
-        all_symbols_bars = report_data.get('metadata', {}).get('all_symbols_bars',
-                             report_data.get('all_symbols_bars', []))
-        
-        if not all_symbols_bars:
-            items = report_data.get('items', [])
-        else:
-            items = all_symbols_bars
         
         coins = []
         for item in items:
+            symbol = item.get('symbol')
+            # 提取最新的K线信息以计算实体比例
+            bars = item.get('bars', [])
+            entity_ratio = 0
+            if bars:
+                last_bar = bars[-1]
+                try:
+                    o = float(last_bar.get('o', 0))
+                    c = float(last_bar.get('c', 0))
+                    h = float(last_bar.get('high', 0))
+                    l = float(last_bar.get('low', 0))
+                    if h > l:
+                        entity_ratio = round(abs(c - o) / (h - l) * 100, 1)
+                except Exception:
+                    pass
+
             coins.append({
-                'symbol': item.get('symbol'),
+                'symbol': symbol,
                 'price': item.get('price', 0),
                 'step': item.get('hrs', 0),
+                'hrs': item.get('hrs', 0),
                 'vol': item.get('vol', 0),
                 'gain': item.get('gain', 0),
                 'time': item.get('time', ''),
-                'chart_url': f"/triple-chart/{item.get('symbol')}"
+                'rsi7': item.get('rsi7', 50),  # 暂时给默认值，如果后续策略中加入再真实显示
+                'bb_position': item.get('bb_position', '中轨上方'),
+                'entity_ratio': entity_ratio,
+                'chart_url': f"/static/charts/{symbol}_triple.png"
             })
         
         return jsonify({'code': 0, 'coins': coins, 'count': len(coins)})

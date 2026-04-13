@@ -139,7 +139,11 @@
     <div class="modal-overlay" id="chartModal" onclick="closeModal(event)">
         <div class="modal-content" onclick="event.stopPropagation()">
             <div class="modal-header">
-                <span class="modal-title" id="modalTitle">图表</span>
+                <div class="modal-title" id="modalTitle">
+                    <span id="chartModalSymbol" style="cursor:pointer; color:#58a6ff; user-select:none; -webkit-user-select:none; padding:4px 0;" title="点击复制" onclick="copyText(this.innerText, 'chartCopyToast')"></span>
+                    <span id="chartModalSuffix"> 行情图</span>
+                    <span id="chartCopyToast" style="display:none; font-size:12px; color:#7ee787; margin-left:10px; font-weight:normal;">已复制!</span>
+                </div>
                 <button class="modal-close" onclick="closeChartModal()">&times;</button>
             </div>
             <div class="modal-body">
@@ -222,7 +226,7 @@
                 html += '<div class="metric"><div class="metric-label">实体比例</div><div class="metric-value">' + c.entity_ratio + '%</div></div>';
                 html += '</div>';
                 html += '<div class="chart-preview" onclick="openChartModal(\'' + c.symbol + '\')">';
-                html += '<img src="' + c.chart_url + '?t=' + Date.now() + '" alt="chart" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22><text x=%2250%%22 y=%2225%22 text-anchor=%22middle%22 fill=%22%23666%22>暂无图表</text></svg>\'">';
+                html += '<img loading="lazy" src="' + c.chart_url + '?t=' + Date.now() + '" alt="chart" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 50%22><text x=%2250%%22 y=%2225%22 text-anchor=%22middle%22 fill=%22%23666%22>暂无图表</text></svg>\'">';
                 html += '</div>';
                 html += '</div>';
                 html += '</div>';
@@ -240,12 +244,53 @@
             var img = document.getElementById('chartImage');
             var loading = document.getElementById('chartLoading');
             
-            document.getElementById('modalTitle').textContent = symbol + ' 行情图';
+            var symEl = document.getElementById('chartModalSymbol');
+            if (symEl) {
+                symEl.textContent = symbol;
+                document.getElementById('chartModalSuffix').textContent = ' 行情图';
+            } else {
+                document.getElementById('modalTitle').textContent = symbol + ' 行情图';
+            }
+            
             loading.style.display = 'block';
             img.style.display = 'none';
             modal.classList.add('open');
             
-            img.src = '/triple-chart/' + symbol + '?t=' + Date.now();
+            img.src = '/static/charts/' + symbol + '_triple.png?t=' + Date.now();
+        }
+        
+        function copyText(text, toastId) {
+            function showToast() {
+                var toast = document.getElementById(toastId);
+                if (toast) {
+                    toast.style.display = 'inline';
+                    setTimeout(function() { toast.style.display = 'none'; }, 2000);
+                }
+            }
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(text).then(showToast).catch(e => console.error(e));
+            } else {
+                var textArea = document.createElement("textarea");
+                textArea.value = text;
+                textArea.style.position = "fixed";
+                textArea.style.left = "-999999px";
+                textArea.setAttribute('readonly', '');
+                document.body.appendChild(textArea);
+                if (navigator.userAgent.match(/ipad|iphone/i)) {
+                    var range = document.createRange();
+                    range.selectNodeContents(textArea);
+                    var selection = window.getSelection();
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    textArea.setSelectionRange(0, 999999);
+                } else {
+                    textArea.select();
+                }
+                try {
+                    if (document.execCommand('copy')) showToast();
+                } catch (err) {}
+                document.body.removeChild(textArea);
+            }
         }
         
         function closeChartModal() {
