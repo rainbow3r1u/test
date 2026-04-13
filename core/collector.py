@@ -35,7 +35,7 @@ class BinanceKlineCollector:
         self.max_retries = config.MAX_RETRIES
         self.retry_delays = config.RETRY_DELAY_SECONDS
         self.timeout = config.REQUEST_TIMEOUT
-        self.concurrent_workers = 10
+        self.concurrent_workers = 3
 
     def _api_request(self, path: str, params: Dict = None) -> Any:
         global request_count, _BANNED_UNTIL, _BANNED_RETRY_DELAY
@@ -107,12 +107,12 @@ class BinanceKlineCollector:
             })
         return rows
 
-    def _fetch_klines_task(self, symbol: str, idx: int, total: int, delay: float = 0.02):
+    def _fetch_klines_task(self, symbol: str, idx: int, total: int, delay: float = 0.15):
         global _BANNED_RETRY_DELAY
         rows = self.fetch_klines(symbol)
         if idx % 50 == 0 or idx == total:
             logger.info(f"进度: {idx}/{total}")
-        time.sleep(_BANNED_RETRY_DELAY)
+        time.sleep(delay)
         return symbol, rows
 
     def _upload_to_cos(self, local_file: str, cos_key: str) -> bool:
