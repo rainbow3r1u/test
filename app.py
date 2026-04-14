@@ -47,33 +47,119 @@ app.static_folder = str(config.STATIC_DIR)
 
 socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
-# 简单的内存缓存机制，避免频繁读取巨型JSON
-_report_cache = {}
-_report_mtime = {}
+def _build_report_from_signals(strategy_name: str, items: list) -> Dict[str, Any]:
+    """从信号列表构建报告结构"""
+    from datetime import datetime
+    
+    strategy_configs = {
+        'strategy1': {
+            'title': '稳步抬升',
+            'conditions': ['日线:今天+昨天均为阳线', '成交额>=15M USDT', '连续3小时+', '最低价逐步抬高', '最新一根为阳线']
+        },
+        'strategy1_pro': {
+            'title': '稳步抬升 PRO版',
+            'conditions': ['日线:今天+昨天均为阳线', '成交额>=15M USDT', '连续3小时+', '最低价逐步抬高', '最新一根为阳线', '过滤长上影线(实体>40%)', '过滤加速赶顶(单根涨幅<8%)']
+        }
+    }
+    
+    config_info = strategy_configs.get(strategy_name, {'title': strategy_name, 'conditions': []})
+    
+    step_symbols = {'step1': [], 'step2': [], 'step3': [], 'step4': [], 'step5': [], 'step6': []}
+    all_symbols_bars = []
+    check_stats = {'total': len(items), 'step1': 0, 'step2': 0, 'step3': 0, 'step4': 0, 'step5': 0, 'step6': 0}
+    
+    for item in items:
+        symbol = item.get('symbol', '')
+        price = item.get('price', 0)
+        bars = item.get('bars', [])
+        hrs = item.get('hrs', 0)
+        
+        if bars:
+            all_symbols_bars.append({'symbol': symbol, 'bars': bars})
+            for step in range(1, min(hrs + 1, 7)):
+                step_key = f'step{step}'
+                check_stats[step_key] += 1
+                step_symbols[step_key].append({
+                    'symbol': symbol,
+                    'price': price,
+                    'bar': bars[step-1] if step <= len(bars) else bars[-1],
+                    'bars': bars
+                })
+    
+    return {
+        'strategy_name': strategy_name,
+        'title': config_info['title'],
+        'timestamp': datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S'),
+        'conditions': config_info['conditions'],
+        'summary': {
+            'total_signals': len(items),
+            'check_stats': check_stats,
+            'step_symbols': step_symbols,
+            'all_symbols_bars': all_symbols_bars
+        },
+        'items': items
+    }
 
 def get_latest_report(strategy_name: str) -> Dict[str, Any]:
-    # 优先读 /var/www/（每次更新后的最新数据）
+    data = None
     var_www_file = f'/var/www/{strategy_name}.json'
+    
     if os.path.exists(var_www_file):
-        target_file = var_www_file
+        with open(var_www_file, 'r', encoding='utf-8') as f:
+            data = json.load(f)
     else:
         target_file = str(config.OUTPUT_DIR / f'{strategy_name}.json')
-        if not os.path.exists(target_file):
+        if os.path.exists(target_file):
+            with open(target_file, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        else:
             pattern = str(config.OUTPUT_DIR / f'{strategy_name}_*.json')
             files = glob.glob(pattern)
-            if not files:
-                return None
-            target_file = max(files, key=os.path.getmtime)
-        
-    mtime = os.path.getmtime(target_file)
-    if strategy_name in _report_cache and _report_mtime.get(strategy_name) == mtime:
-        return _report_cache[strategy_name]
-        
-    with open(target_file, 'r', encoding='utf-8') as f:
-        data = json.load(f)
-        _report_cache[strategy_name] = data
-        _report_mtime[strategy_name] = mtime
-        return data
+            if files:
+                target_file = max(files, key=os.path.getmtime)
+                with open(target_file, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+    
+    if strategy_name in ['strategy1', 'strategy1_pro']:
+        signals_file = f'/var/www/all_signals{"_pro" if strategy_name == "strategy1_pro" else ""}.json'
+        if os.path.exists(signals_file):
+            try:
+                with open(signals_file, 'r', encoding='utf-8') as f:
+                    items = json.load(f)
+                
+                if data is None:
+                    data = _build_report_from_signals(strategy_name, items)
+                else:
+                    step_symbols = {'step1': [], 'step2': [], 'step3': [], 'step4': [], 'step5': [], 'step6': []}
+                    all_symbols_bars = []
+                    
+                    for item in items:
+                        symbol = item.get('symbol', '')
+                        price = item.get('price', 0)
+                        bars = item.get('bars', [])
+                        hrs = item.get('hrs', 0)
+                        
+                        if bars:
+                            all_symbols_bars.append({'symbol': symbol, 'bars': bars})
+                            for step in range(1, min(hrs + 1, 7)):
+                                step_key = f'step{step}'
+                                step_symbols[step_key].append({
+                                    'symbol': symbol,
+                                    'price': price,
+                                    'bar': bars[step-1] if step <= len(bars) else bars[-1],
+                                    'bars': bars
+                                })
+                    
+                    if 'summary' not in data:
+                        data['summary'] = {}
+                    data['summary']['step_symbols'] = step_symbols
+                    data['summary']['all_symbols_bars'] = all_symbols_bars
+                    data['items'] = items
+                    
+            except Exception as e:
+                logger.error(f"重建 {strategy_name} 的 step_symbols 失败: {e}")
+    
+    return data
 
 
 def get_all_reports() -> List[Dict[str, Any]]:
