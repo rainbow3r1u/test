@@ -181,19 +181,11 @@ struct BarInfo {
 }
 
 fn format_ts(ts_ms: i64) -> String {
-    // 将 Unix 毫秒时间戳格式化为 "MM-DD HH:MM"
-    let seconds = ts_ms / 1000;
-    let minutes = (seconds / 60) % 60;
-    let hours = (seconds / 3600) % 24;
-    let days = seconds / 86400;
-    
-    // 简化的日期计算（从1970-01-01开始）
-    let year = 1970 + days / 365;
-    let day_of_year = days % 365;
-    let month = day_of_year / 30 + 1;
-    let day = day_of_year % 30 + 1;
-    
-    format!("{:02}-{:02} {:02}:{:02}", month, day, hours, minutes)
+    use chrono::{TimeZone, Utc};
+    match Utc.timestamp_millis_opt(ts_ms) {
+        chrono::LocalResult::Single(dt) => dt.format("%m-%d %H:%M").to_string(),
+        _ => String::from("??-?? ??:??"),
+    }
 }
 
 fn build_result_dict(
