@@ -130,34 +130,10 @@ def get_latest_report(strategy_name: str) -> Dict[str, Any]:
                 if data is None:
                     data = _build_report_from_signals(strategy_name, items)
                 else:
-                    step_symbols = {'step1': [], 'step2': [], 'step3': [], 'step4': [], 'step5': [], 'step6': []}
-                    all_symbols_bars = []
-                    
-                    for item in items:
-                        symbol = item.get('symbol', '')
-                        price = item.get('price', 0)
-                        bars = item.get('bars', [])
-                        hrs = item.get('hrs', 0)
-                        
-                        if bars:
-                            all_symbols_bars.append({'symbol': symbol, 'bars': bars})
-                            for step in range(1, min(hrs + 1, 7)):
-                                step_key = f'step{step}'
-                                step_symbols[step_key].append({
-                                    'symbol': symbol,
-                                    'price': price,
-                                    'bar': bars[step-1] if step <= len(bars) else bars[-1],
-                                    'bars': bars
-                                })
-                    
-                    if 'summary' not in data:
-                        data['summary'] = {}
-                    data['summary']['step_symbols'] = step_symbols
-                    data['summary']['all_symbols_bars'] = all_symbols_bars
                     data['items'] = items
                     
             except Exception as e:
-                logger.error(f"重建 {strategy_name} 的 step_symbols 失败: {e}")
+                logger.error(f"更新 {strategy_name} 的 items 失败: {e}")
     
     return data
 
