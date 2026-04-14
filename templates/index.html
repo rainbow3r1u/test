@@ -166,49 +166,6 @@
 <!-- 稳步抬升视图 -->
 {% if current_view == 'strategy1' or current_view == 'strategy1_pro' %}
 
-{% if current_view == 'strategy1_pro' %}
-<div class="report-card" style="margin:14px 20px 12px;">
-    <div class="report-title">市场指标</div>
-    <div style="display:flex;gap:12px;margin-top:10px;">
-        <div id="btcRsiCard" style="background:#0d1117;border:1px solid #30363d;border-radius:8px;padding:14px 20px;min-width:160px;text-align:center;">
-            <div style="font-size:12px;color:#8b949e;margin-bottom:6px;">BTC RSI(7) · 1D</div>
-            <div id="btcRsiValue" style="font-size:28px;font-weight:700;color:#e6edf3;">--</div>
-            <div id="btcRsiStatus" style="font-size:11px;margin-top:4px;color:#8b949e;">加载中...</div>
-        </div>
-    </div>
-</div>
-<script>
-(function() {
-    function loadBtcRsi() {
-        fetch('/api/btc_rsi?period=7').then(r=>r.json()).then(res => {
-            if (res.code === 0) {
-                var rsi = res.rsi;
-                var val = document.getElementById('btcRsiValue');
-                var card = document.getElementById('btcRsiCard');
-                var status = document.getElementById('btcRsiStatus');
-                val.textContent = rsi.toFixed(2);
-                if (rsi >= 70) {
-                    val.style.color = '#f85149';
-                    card.style.borderColor = '#f85149';
-                    card.style.background = 'rgba(248,81,73,0.08)';
-                    status.textContent = '⚠️ 超买区间 (≥70)';
-                    status.style.color = '#f85149';
-                } else {
-                    val.style.color = '#3fb950';
-                    card.style.borderColor = '#3fb950';
-                    card.style.background = 'rgba(63,185,80,0.08)';
-                    status.textContent = '✅ 正常区间 (<70)';
-                    status.style.color = '#3fb950';
-                }
-            }
-        });
-    }
-    loadBtcRsi();
-    setInterval(loadBtcRsi, 5 * 60 * 1000);
-})();
-</script>
-{% endif %}
-
 <div class="report-card" style="margin:14px 20px 12px;">
     <div class="report-title">{% if current_view == 'strategy1_pro' %}稳步抬升 PRO版 (过滤长上影线+加速赶顶){% else %}稳步抬升{% endif %}</div>
     <div class="report-meta">更新时间: <span id="updateTime"></span></div>
@@ -226,6 +183,12 @@
             <div class="summary-label">倒计时</div>
             <div class="summary-value" id="countdown">-</div>
         </div>
+        {% if current_view == 'strategy1_pro' %}
+        <div class="summary-item" id="btcRsiItem">
+            <div class="summary-label">BTC RSI(7) · 日线</div>
+            <div class="summary-value" id="btcRsiValue" style="color:#e6edf3;">--</div>
+        </div>
+        {% endif %}
     </div>
     
     <div class="summary-grid" id="checkStatsGrid">
@@ -1637,6 +1600,31 @@ function recalculateSteps(minHrs) {
 loadCheckInfo();
 applyFilters();
 setInterval(loadCheckInfo, 60000);
+
+// BTC RSI 加载（仅在PRO页面）
+{% if current_view == 'strategy1_pro' %}
+(function() {
+    function loadBtcRsi() {
+        fetch('/api/btc_rsi?period=7').then(r=>r.json()).then(res => {
+            if (res.code === 0) {
+                var rsi = res.rsi;
+                var val = document.getElementById('btcRsiValue');
+                if (val) {
+                    val.textContent = rsi.toFixed(2);
+                    // RSI >= 70 显示红色，否则绿色
+                    if (rsi >= 70) {
+                        val.style.color = '#f85149';
+                    } else {
+                        val.style.color = '#3fb950';
+                    }
+                }
+            }
+        });
+    }
+    loadBtcRsi();
+    setInterval(loadBtcRsi, 5 * 60 * 1000);
+})();
+{% endif %}
 </script>
 </body>
 </html>
