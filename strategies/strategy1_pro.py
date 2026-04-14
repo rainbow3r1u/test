@@ -160,7 +160,7 @@ class Strategy1Pro(BaseStrategy):
             high_arr = group['high'].tolist()
             low_arr = group['low'].tolist()
             close_arr = group['close'].tolist()
-            ts_arr = (group['timestamp'].astype('int64') // 1_000_000).tolist()
+            ts_arr = group['timestamp'].astype('int64').tolist()
             vol_arr = group['quote_volume'].tolist()
             
             # 调用 Rust 引擎
@@ -178,12 +178,22 @@ class Strategy1Pro(BaseStrategy):
             
             if res:
                 results.append(res)
-                # 更新 step 统计
                 consecutive_count = res.get('hrs', 0)
                 for step in range(1, consecutive_count + 1):
                     step_key = f'step{step}'
                     check_stats[step_key] += 1
-            
+                    step_symbols[step_key].append({
+                        'symbol': symbol,
+                        'price': res.get('price'),
+                        'bar': res.get('bars', [])[-1] if res.get('bars') else {},
+                        'bars': res.get('bars', [])
+                    })
+
+                all_symbols_bars.append({
+                    'symbol': symbol,
+                    'bars': res.get('bars', [])
+                })
+
             if idx % 20 == 0:
                 self.logger.info(f"进度: {idx}/{len(passed_symbols)}")
         
