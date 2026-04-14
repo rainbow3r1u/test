@@ -9,6 +9,7 @@ import json
 import glob
 import time
 import threading
+import requests
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List
@@ -255,6 +256,28 @@ def api_surge_filter():
         return jsonify({'code': 0, 'data': result})
     except Exception as e:
         logger.error(f"surge_filter策略执行失败: {e}")
+        return jsonify({'code': 1, 'msg': str(e)})
+
+
+@app.route('/api/btc_rsi')
+def api_btc_rsi():
+    try:
+        period = int(request.args.get('period', 7))
+        limit = period * 5 + 1
+        params = {'symbol': 'BTCUSDT', 'interval': '1d', 'limit': limit}
+        resp = requests.get(f"{config.BINANCE_API}/fapi/v1/klines", params=params, timeout=10)
+        closes = [float(k[4]) for k in resp.json()]
+        deltas = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        gains = [max(d, 0) for d in deltas]
+        losses = [max(-d, 0) for d in deltas]
+        avg_gain = sum(gains[:period]) / period
+        avg_loss = sum(losses[:period]) / period
+        for i in range(period, len(deltas)):
+            avg_gain = (avg_gain * (period - 1) + gains[i]) / period
+            avg_loss = (avg_loss * (period - 1) + losses[i]) / period
+        rsi = 100.0 if avg_loss == 0 else 100 - (100 / (1 + avg_gain / avg_loss))
+        return jsonify({'code': 0, 'rsi': round(rsi, 2), 'symbol': 'BTCUSDT'})
+    except Exception as e:
         return jsonify({'code': 1, 'msg': str(e)})
 
 
