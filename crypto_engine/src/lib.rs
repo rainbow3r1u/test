@@ -171,46 +171,29 @@ fn scan_single_symbol(
 // ============ strategy1 & strategy1_pro ============
 
 struct BarInfo {
-    i: usize,
     o: f64,
     h: f64,
     l: f64,
     c: f64,
     vol: f64,
     range_pct: f64,
-    ts: String,
+    ts_ms: i64,
 }
 
-fn parse_ts_ms(ts: &str) -> i64 {
-    // 解析格式 "YYYY-MM-DD HH:MM:SS" 为 Unix 毫秒时间戳
-    // 简化实现：假设输入是 UTC 时间字符串
-    use std::time::{SystemTime, UNIX_EPOCH};
+fn format_ts(ts_ms: i64) -> String {
+    // 将 Unix 毫秒时间戳格式化为 "MM-DD HH:MM"
+    let seconds = ts_ms / 1000;
+    let minutes = (seconds / 60) % 60;
+    let hours = (seconds / 3600) % 24;
+    let days = seconds / 86400;
     
-    // 尝试解析时间字符串
-    let parts: Vec<&str> = ts.split(' ').collect();
-    if parts.len() != 2 {
-        return 0;
-    }
+    // 简化的日期计算（从1970-01-01开始）
+    let year = 1970 + days / 365;
+    let day_of_year = days % 365;
+    let month = day_of_year / 30 + 1;
+    let day = day_of_year % 30 + 1;
     
-    let date_parts: Vec<&str> = parts[0].split('-').collect();
-    let time_parts: Vec<&str> = parts[1].split(':').collect();
-    
-    if date_parts.len() != 3 || time_parts.len() != 3 {
-        return 0;
-    }
-    
-    let year = date_parts[0].parse::<i32>().unwrap_or(2024);
-    let month = date_parts[1].parse::<u32>().unwrap_or(1);
-    let day = date_parts[2].parse::<u32>().unwrap_or(1);
-    let hour = time_parts[0].parse::<u32>().unwrap_or(0);
-    let minute = time_parts[1].parse::<u32>().unwrap_or(0);
-    let second = time_parts[2].parse::<u32>().unwrap_or(0);
-    
-    // 简化的 Unix 时间戳计算（从 1970-01-01 开始的秒数）
-    // 这里使用一个近似值，实际应该用 chrono 库
-    let days_since_1970 = (year - 1970) as i64 * 365 + (month as i64 - 1) * 30 + day as i64;
-    let seconds = days_since_1970 * 86400 + hour as i64 * 3600 + minute as i64 * 60 + second as i64;
-    seconds * 1000
+    format!("{:02}-{:02} {:02}:{:02}", month, day, hours, minutes)
 }
 
 fn build_result_dict(
@@ -234,17 +217,16 @@ fn build_result_dict(
     dict.set_item("price", last.c)?;
     
     // 计算时间范围
-    let time_str = format!("{} ~ {}", first.ts.split(' ').nth(1).unwrap_or(""), last.ts.split(' ').nth(1).unwrap_or(""));
+    let first_ts = format_ts(first.ts_ms);
+    let last_ts = format_ts(last.ts_ms);
+    let time_str = format!("{} ~ {}", first_ts, last_ts);
     dict.set_item("time", time_str)?;
-    dict.set_item("startTime", &first.ts)?;
-    dict.set_item("endTime", &last.ts)?;
+    dict.set_item("startTime", first_ts)?;
+    dict.set_item("endTime", last_ts)?;
     
     // 计算 endHour
-    let end_hour = last.ts.split(' ').nth(1)
-        .and_then(|t| t.split(':').next())
-        .and_then(|h| h.parse::<i32>().ok())
-        .unwrap_or(0);
-    dict.set_item("endHour", end_hour)?;
+    let end_hour = ((last.ts_ms / 1000) / 3600) % 24;
+    dict.set_item("endHour", end_hour as i32)?;
     
     dict.set_item("hrs", consecutive_count)?;
     dict.set_item("vol", (last.vol / 1_000_000.0 * 100.0).round() / 100.0)?;
@@ -257,7 +239,7 @@ fn build_result_dict(
     let bars_list = PyList::empty_bound(py);
     for bar in bars_info {
         let bar_dict = PyDict::new_bound(py);
-        bar_dict.set_item("t", &bar.ts)?;
+        bar_dict.set_item("t", format_ts(bar.ts_ms))?;
         bar_dict.set_item("o", format!("{:.6}", bar.o))?;
         bar_dict.set_item("high", format!("{:.6}", bar.h))?;
         bar_dict.set_item("low", format!("{:.6}", bar.l))?;
@@ -284,7 +266,7 @@ fn scan_s1_core(
     high_arr: Vec<f64>,
     low_arr: Vec<f64>,
     close_arr: Vec<f64>,
-    timestamps: Vec<String>,
+    timestamps_ms: Vec<i64>,  // 改为 i64 Unix 毫秒时间戳
     quote_vol: Vec<f64>,
     cutoff_ts_ms: i64,
     min_hours: usize,
@@ -298,7 +280,7 @@ fn scan_s1_core(
     // 找最近6根不超过 cutoff_ts_ms 的K线索引
     let mut valid_indices: Vec<usize> = Vec::new();
     for i in 0..n {
-        let ts_ms = parse_ts_ms(&timestamps[i]);
+        let ts_ms = timestamps_ms[i];
         if ts_ms <= cutoff_ts_ms {
             valid_indices.push(i);
         }
@@ -321,7 +303,7 @@ fn scan_s1_core(
         let l = low_arr[i];
         let c = close_arr[i];
         let vol = quote_vol[i];
-        let ts = &timestamps[i];
+        let ts_ms = timestamps_ms[i];
 
         let is_bullish = c > o;
         if !is_bullish { break; }
@@ -345,7 +327,7 @@ fn scan_s1_core(
         }
 
         let range_pct = (h - l) / l;
-        bars_info.insert(0, BarInfo { i, o, h, l, c, vol, range_pct, ts: ts.clone() });
+        bars_info.insert(0, BarInfo { o, h, l, c, vol, range_pct, ts_ms });
 
         // PRO: 单根涨幅过滤（记录后再判断）
         if pro_mode {
@@ -380,13 +362,13 @@ fn scan_strategy1_symbol(
     high_arr: Vec<f64>,
     low_arr: Vec<f64>,
     close_arr: Vec<f64>,
-    timestamps: Vec<String>,
+    timestamps_ms: Vec<i64>,  // 改为 i64 Unix 毫秒时间戳
     quote_vol: Vec<f64>,
     cutoff_ts_ms: i64,
     min_hours: usize,
 ) -> PyResult<Option<PyObject>> {
     scan_s1_core(py, symbol, open_arr, high_arr, low_arr, close_arr,
-                 timestamps, quote_vol, cutoff_ts_ms, min_hours,
+                 timestamps_ms, quote_vol, cutoff_ts_ms, min_hours,
                  false, 0.0, 1.0)
 }
 
@@ -399,7 +381,7 @@ fn scan_strategy1_pro_symbol(
     high_arr: Vec<f64>,
     low_arr: Vec<f64>,
     close_arr: Vec<f64>,
-    timestamps: Vec<String>,
+    timestamps_ms: Vec<i64>,  // 改为 i64 Unix 毫秒时间戳
     quote_vol: Vec<f64>,
     cutoff_ts_ms: i64,
     min_hours: usize,
@@ -407,7 +389,7 @@ fn scan_strategy1_pro_symbol(
     max_single_gain: f64,
 ) -> PyResult<Option<PyObject>> {
     scan_s1_core(py, symbol, open_arr, high_arr, low_arr, close_arr,
-                 timestamps, quote_vol, cutoff_ts_ms, min_hours,
+                 timestamps_ms, quote_vol, cutoff_ts_ms, min_hours,
                  true, min_body_ratio, max_single_gain)
 }
 

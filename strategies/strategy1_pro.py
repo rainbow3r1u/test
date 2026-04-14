@@ -160,7 +160,7 @@ class Strategy1Pro(BaseStrategy):
             high_arr = group['high'].tolist()
             low_arr = group['low'].tolist()
             close_arr = group['close'].tolist()
-            ts_arr = group['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist()
+            ts_arr = (group['timestamp'].astype('int64') // 1_000_000).tolist()
             vol_arr = group['quote_volume'].tolist()
             
             # 调用 Rust 引擎
