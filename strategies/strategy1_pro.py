@@ -14,6 +14,13 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.data_loader import DataLoader
 from strategies.base import BaseStrategy, format_volume
 
+# Rust 引擎导入
+try:
+    import crypto_engine
+    _USE_RUST = True
+except ImportError:
+    _USE_RUST = False
+
 
 class Strategy1Pro(BaseStrategy):
     """
@@ -138,6 +145,9 @@ class Strategy1Pro(BaseStrategy):
         
         results = []
         
+        # 准备 Rust 调用参数
+        cutoff_ts_ms = int(current_hour.timestamp() * 1000)
+        
         for idx, symbol in enumerate(passed_symbols, 1):
             group = df[df['symbol'] == symbol].copy()
             if len(group) < 10:
@@ -145,155 +155,34 @@ class Strategy1Pro(BaseStrategy):
             
             group = group.sort_values('timestamp').reset_index(drop=True)
             
-            recent_6h = group[group['timestamp'] <= current_hour].tail(6).copy()
+            # 准备数组数据
+            open_arr = group['open'].tolist()
+            high_arr = group['high'].tolist()
+            low_arr = group['low'].tolist()
+            close_arr = group['close'].tolist()
+            ts_arr = group['timestamp'].dt.strftime('%Y-%m-%d %H:%M:%S').tolist()
+            vol_arr = group['quote_volume'].tolist()
             
-            if len(recent_6h) < 3:
-                continue
+            # 调用 Rust 引擎
+            if _USE_RUST:
+                res = crypto_engine.scan_strategy1_pro_symbol(
+                    symbol, open_arr, high_arr, low_arr, close_arr,
+                    ts_arr, vol_arr, cutoff_ts_ms, min_hours,
+                    min_body_ratio, max_single_gain
+                )
+            else:
+                res = self._scan_single_symbol_python(
+                    symbol, group, current_hour, min_hours, min_body_ratio, max_single_gain,
+                    check_stats, step_symbols
+                )
             
-            recent_6h = recent_6h.iloc[::-1].reset_index(drop=True)
-            
-            bars_raw = []
-            for i, row in recent_6h.iterrows():
-                open_price = row['open']
-                high_price = row['high']
-                low_price = row['low']
-                close_price = row['close']
-                range_pct = (high_price - low_price) / low_price
-                is_bullish = close_price > open_price
-                
-                bars_raw.append({
-                    't': row['timestamp'].strftime('%m-%d %H:%M'),
-                    'o': round(open_price, 8),
-                    'high': round(high_price, 8),
-                    'low': round(low_price, 8),
-                    'c': round(close_price, 8),
-                    'r': round(range_pct, 6),
-                    'v': round(row['quote_volume']/1e6, 4),
-                    'bullish': is_bullish
-                })
-            
-            all_symbols_bars.append({
-                'symbol': symbol,
-                'bars': bars_raw
-            })
-            
-            consecutive_count = 0
-            bars_info = []
-            passed_steps = []
-            
-            # 从最新K线向旧K线遍历(倒序), 遇到阴线即停
-            for i, row in recent_6h.iterrows():
-                open_price = row['open']
-                high_price = row['high']
-                low_price = row['low']
-                close_price = row['close']
-                range_pct = (high_price - low_price) / low_price
-                is_bullish = close_price > open_price
-                
-                # 实体比例和单根涨幅
-                body_ratio = abs(close_price - open_price) / (high_price - low_price + 1e-8)
-                single_gain = (close_price - open_price) / open_price
-                
-                if not is_bullish:
-                    break
-                    
-                if body_ratio < min_body_ratio:
-                    self.logger.info(f"  {symbol} 淘汰: 实体比例 {body_ratio:.2f} < {min_body_ratio} (长上影线/十字星)")
-                    break
-                    
-                # 先检查低点抬高（在检查单根涨幅之前）
-                if consecutive_count == 0:
-                    current_low = low_price
-                    consecutive_count = 1
-                else:
-                    # 下一根更旧的K线, low必须比当前的current_low更低才算抬高(从旧到新看)
-                    if low_price >= current_low:
-                        break
-                    current_low = low_price
-                    consecutive_count += 1
-                
-                # 记录当前bar信息（在检查单根涨幅之前）
-                bar_info = {
-                    't': row['timestamp'].strftime('%m-%d %H:%M'),
-                    'o': f"{open_price:.6f}",
-                    'high': f"{high_price:.6f}",
-                    'low': f"{low_price:.6f}",
-                    'c': f"{close_price:.6f}",
-                    'r': f"{range_pct*100:.2f}%",
-                    'v': f"{row['quote_volume']/1e6:.2f}M",
-                    'type': '阳线' if is_bullish else '阴线'
-                }
-                bars_info.insert(0, bar_info)  # 插入头部保持旧→新顺序
-                
-                # 检查单根涨幅是否超标（在记录bar_info之后）
-                if single_gain > max_single_gain:
-                    self.logger.info(f"  {symbol} 资金异动观察: 单根涨幅 {single_gain*100:.2f}% > {max_single_gain*100:.2f}% (加速赶顶)")
-                    # 添加到观察窗，保留所有已通过的bars
-                    obs_bar = {
-                        't': row['timestamp'].strftime('%m-%d %H:%M'),
-                        'o': f"{open_price:.6f}",
-                        'high': f"{high_price:.6f}",
-                        'low': f"{low_price:.6f}",
-                        'c': f"{close_price:.6f}",
-                        'r': f"{range_pct*100:.2f}%",
-                        'v': f"{row['quote_volume']/1e6:.2f}M",
-                        'type': '爆拉大阳线'
-                    }
-                    results.append({
-                        'symbol': symbol,
-                        'price': float(close_price),
-                        'time': obs_bar['t'],
-                        'startTime': bars_info[0]['t'] if bars_info else obs_bar['t'],
-                        'endTime': obs_bar['t'],
-                        'endHour': row['timestamp'].hour,
-                        'hrs': consecutive_count,
-                        'vol': round(row['quote_volume']/1e6, 2),
-                        'gain': round(single_gain*100, 2),
-                        'bars': bars_info[:-1] + [obs_bar] if bars_info else [obs_bar],
-                        'is_watchlist': True,
-                        'watch_reason': f"单根涨幅 {single_gain*100:.2f}% > {max_single_gain*100:.2f}%"
-                    })
-                    break
-                
-                step_key = f'step{consecutive_count}'
-                self.logger.info(f"  {symbol} STEP{step_key}: {bar_info['t']} 阳线, 震幅{range_pct*100:.2f}%, low={low_price:.6f}")
-                check_stats[step_key] += 1
-                step_symbols[step_key].append({
-                    'symbol': symbol,
-                    'price': close_price,
-                    'bar': bar_info,
-                    'bars': bars_info.copy()
-                })
-                passed_steps.append(consecutive_count)
-            
-            if consecutive_count >= min_hours:
-                # bars_info 已是正序(旧→新), 每个元素含 t/o/high/low/c/r/v/type
-                first_bar = bars_info[0]
-                last_bar = bars_info[-1]
-
-                total_gain = (float(last_bar['c']) - float(first_bar['o'])) / float(first_bar['o']) * 100
-                last_vol_str = last_bar.get('v', '0')
-                last_vol = float(last_vol_str.replace('M', '')) * 1e6
-
-                start_time_str = first_bar['t'].replace('-',' ')
-                end_time_str = last_bar['t'].replace('-',' ')
-                # 补全年份
-                now_year = datetime.now().year
-                start_time = datetime.strptime(f'{now_year} {start_time_str}', '%Y %m %d %H:%M')
-                end_time = datetime.strptime(f'{now_year} {end_time_str}', '%Y %m %d %H:%M')
-                
-                results.append({
-                    'symbol': symbol,
-                    'price': float(last_bar['c']),
-                    'time': f"{start_time.strftime('%H:%M')} ~ {end_time.strftime('%H:%M')}",
-                    'startTime': start_time.strftime('%m-%d %H:%M'),
-                    'endTime': end_time.strftime('%m-%d %H:%M'),
-                    'endHour': end_time.hour,
-                    'hrs': consecutive_count,
-                    'vol': round(last_vol/1e6, 2),
-                    'gain': round(total_gain, 2),
-                    'bars': bars_info
-                })
+            if res:
+                results.append(res)
+                # 更新 step 统计
+                consecutive_count = res.get('hrs', 0)
+                for step in range(1, consecutive_count + 1):
+                    step_key = f'step{step}'
+                    check_stats[step_key] += 1
             
             if idx % 20 == 0:
                 self.logger.info(f"进度: {idx}/{len(passed_symbols)}")
@@ -345,6 +234,119 @@ class Strategy1Pro(BaseStrategy):
             },
             items=items
         )
+    
+    def _scan_single_symbol_python(self, symbol, group, current_hour, min_hours, min_body_ratio, max_single_gain, check_stats, step_symbols):
+        """Python fallback 实现"""
+        recent_6h = group[group['timestamp'] <= current_hour].tail(6).copy()
+        
+        if len(recent_6h) < 3:
+            return None
+        
+        recent_6h = recent_6h.iloc[::-1].reset_index(drop=True)
+        
+        consecutive_count = 0
+        bars_info = []
+        
+        for i, row in recent_6h.iterrows():
+            open_price = row['open']
+            high_price = row['high']
+            low_price = row['low']
+            close_price = row['close']
+            range_pct = (high_price - low_price) / low_price
+            is_bullish = close_price > open_price
+            
+            body_ratio = abs(close_price - open_price) / (high_price - low_price + 1e-8)
+            single_gain = (close_price - open_price) / open_price
+            
+            if not is_bullish:
+                break
+                
+            if body_ratio < min_body_ratio:
+                break
+            
+            if consecutive_count == 0:
+                current_low = low_price
+                consecutive_count = 1
+            else:
+                if low_price >= current_low:
+                    break
+                current_low = low_price
+                consecutive_count += 1
+            
+            bar_info = {
+                't': row['timestamp'].strftime('%m-%d %H:%M'),
+                'o': f"{open_price:.6f}",
+                'high': f"{high_price:.6f}",
+                'low': f"{low_price:.6f}",
+                'c': f"{close_price:.6f}",
+                'r': f"{range_pct*100:.2f}%",
+                'v': f"{row['quote_volume']/1e6:.2f}M",
+                'type': '阳线'
+            }
+            bars_info.insert(0, bar_info)
+            
+            if single_gain > max_single_gain:
+                obs_bar = {
+                    't': row['timestamp'].strftime('%m-%d %H:%M'),
+                    'o': f"{open_price:.6f}",
+                    'high': f"{high_price:.6f}",
+                    'low': f"{low_price:.6f}",
+                    'c': f"{close_price:.6f}",
+                    'r': f"{range_pct*100:.2f}%",
+                    'v': f"{row['quote_volume']/1e6:.2f}M",
+                    'type': '爆拉大阳线'
+                }
+                return {
+                    'symbol': symbol,
+                    'price': float(close_price),
+                    'time': obs_bar['t'],
+                    'startTime': bars_info[0]['t'] if bars_info else obs_bar['t'],
+                    'endTime': obs_bar['t'],
+                    'endHour': row['timestamp'].hour,
+                    'hrs': consecutive_count,
+                    'vol': round(row['quote_volume']/1e6, 2),
+                    'gain': round(single_gain*100, 2),
+                    'bars': bars_info[:-1] + [obs_bar] if bars_info else [obs_bar],
+                    'is_watchlist': True,
+                    'watch_reason': f"单根涨幅 {single_gain*100:.2f}% > {max_single_gain*100:.2f}%"
+                }
+            
+            step_key = f'step{consecutive_count}'
+            check_stats[step_key] += 1
+            step_symbols[step_key].append({
+                'symbol': symbol,
+                'price': close_price,
+                'bar': bar_info,
+                'bars': bars_info.copy()
+            })
+        
+        if consecutive_count >= min_hours:
+            first_bar = bars_info[0]
+            last_bar = bars_info[-1]
+            
+            total_gain = (float(last_bar['c']) - float(first_bar['o'])) / float(first_bar['o']) * 100
+            last_vol = float(last_bar['v'].replace('M', '')) * 1e6
+            
+            now_year = datetime.now().year
+            start_time_str = first_bar['t'].replace('-',' ')
+            end_time_str = last_bar['t'].replace('-',' ')
+            start_time = datetime.strptime(f'{now_year} {start_time_str}', '%Y %m %d %H:%M')
+            end_time = datetime.strptime(f'{now_year} {end_time_str}', '%Y %m %d %H:%M')
+            
+            return {
+                'symbol': symbol,
+                'price': float(last_bar['c']),
+                'time': f"{start_time.strftime('%H:%M')} ~ {end_time.strftime('%H:%M')}",
+                'startTime': start_time.strftime('%m-%d %H:%M'),
+                'endTime': end_time.strftime('%m-%d %H:%M'),
+                'endHour': end_time.hour,
+                'hrs': consecutive_count,
+                'vol': round(last_vol/1e6, 2),
+                'gain': round(total_gain, 2),
+                'bars': bars_info
+            }
+        
+        return None
     
     def run(self, generate_charts: bool = False, save_to_db: bool = False) -> 'StrategyReport':
         self.logger.info(f"{'='*60}")
